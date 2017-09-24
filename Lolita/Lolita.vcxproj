@@ -74,7 +74,8 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -111,6 +112,24 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="arena.hpp" />
+    <ClInclude Include="debug.h" />
+    <ClInclude Include="flat-set.hpp" />
+    <ClInclude Include="grammar-analytic.h" />
+    <ClInclude Include="grammar.h" />
+    <ClInclude Include="lolita-basic.h" />
+    <ClInclude Include="parser.h" />
+    <ClInclude Include="range.hpp" />
+    <ClInclude Include="symbol.h" />
+    <ClInclude Include="table.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="debug.cpp" />
+    <ClCompile Include="grammar-analytic.cpp" />
+    <ClCompile Include="grammar.cpp" />
+    <ClCompile Include="parser.cpp" />
+    <ClCompile Include="Source.cpp" />
+    <ClCompile Include="symbol.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,17 +1,81 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Header Files">
+    <Filter Include="ParserGen">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Resource Files">
+    <Filter Include="LexerGen">
+      <UniqueIdentifier>{ceced5e8-1887-4ea5-b0c5-be39fd1e177d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParserGen\Header">
+      <UniqueIdentifier>{6fbcee8b-95b2-49ae-b5e7-cb2584d91deb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ParserGen\Source">
+      <UniqueIdentifier>{0ea3b778-4d91-4bcd-9fa9-b4fdeebb667a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External">
+      <UniqueIdentifier>{a77c6d6d-4613-477a-86f1-ce39f7a46ed6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Debug">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="lolita-basic.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="grammar.h">
+      <Filter>ParserGen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="grammar-analytic.h">
+      <Filter>ParserGen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="parser.h">
+      <Filter>ParserGen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="symbol.h">
+      <Filter>ParserGen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="arena.hpp">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="flat-set.hpp">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="range.hpp">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="table.hpp">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="debug.h">
+      <Filter>Debug</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Source.cpp">
+      <Filter>Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="grammar.cpp">
+      <Filter>ParserGen\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="grammar-analytic.cpp">
+      <Filter>ParserGen\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="parser.cpp">
+      <Filter>ParserGen\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="symbol.cpp">
+      <Filter>ParserGen\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="debug.cpp">
+      <Filter>Debug</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
