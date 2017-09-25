@@ -25,6 +25,12 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="LexerGen\Header">
+      <UniqueIdentifier>{024bfe7b-0a2b-4a83-8420-3632c7c16340}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LexerGen\Source">
+      <UniqueIdentifier>{88d975fb-7099-4226-8f4c-ee2e6c8997ad}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lolita-basic.h">
@@ -57,6 +63,15 @@
     <ClInclude Include="debug.h">
       <Filter>Debug</Filter>
     </ClInclude>
+    <ClInclude Include="lexer.h">
+      <Filter>LexerGen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="lex-rule.h">
+      <Filter>LexerGen\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="regex.h">
+      <Filter>LexerGen\Header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
@@ -76,6 +91,9 @@
     </ClCompile>
     <ClCompile Include="debug.cpp">
       <Filter>Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="lexer.cpp">
+      <Filter>LexerGen\Source</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

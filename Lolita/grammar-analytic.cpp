@@ -47,7 +47,7 @@ namespace lolita
 		func();
 	}
 
-	PredictiveSet GeneratePredictiveSet(const Grammar& g)
+	PredictiveSet PredictiveSet::Create(const Grammar& g)
 	{
 		const auto nonterm_count = g.NonTerminalCount();
 

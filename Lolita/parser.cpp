@@ -138,7 +138,7 @@ namespace lolita
 		return accepted;
 	}
 
-	unsigned Parser::LookupCurrentState(const ParsingStack& ctx)
+	StateId Parser::LookupCurrentState(const ParsingStack& ctx)
 	{
 		if (ctx.empty())
 		{
@@ -157,7 +157,7 @@ namespace lolita
 
 	void EnumerateClosure(const Grammar& grammar, const FlatSet<Item>& state, std::function<void(Item)> callback)
 	{
-		// assme states contains only kernel items
+		// assme state given contains only kernel items
 
 		std::vector<bool> added(grammar.NonTerminalCount(), false);
 		added[grammar.RootSymbol().Id()] = true; // exclude ROOT as it's kernel as well
@@ -234,8 +234,8 @@ namespace lolita
 	struct LRAutomaton
 	{
 		std::vector<LRState> states;
-		std::vector<int> term_jumptable;
-		std::vector<int> nonterm_jumptable;
+		std::vector<StateIdOpt> term_jumptable;
+		std::vector<StateIdOpt> nonterm_jumptable;
 	};
 
 	LRAutomaton GenerateLRAutomaton(const Grammar& grammar)
@@ -243,7 +243,7 @@ namespace lolita
 		auto initial_state = FlatSet<Item>{ Item{ &grammar.RootProduction(), 0 } };
 
 		std::vector<LRState> states{ initial_state };
-		std::vector<std::tuple<unsigned, unsigned, Symbol>> edges;
+		std::vector<std::tuple<StateId, StateId, Symbol>> edges;
 
 		// calculate states and edges
 		for (auto src_index = 0u; src_index < states.size(); ++src_index)
@@ -269,8 +269,8 @@ namespace lolita
 		const auto state_count = states.size();
 		const auto term_count = grammar.TerminalCount();
 		const auto nonterm_count = grammar.NonTerminalCount();
-		std::vector<int> term_jumptable(state_count * term_count, -1);
-		std::vector<int> nonterm_jumptable(state_count * nonterm_count, -1);
+		std::vector<StateIdOpt> term_jumptable(state_count * term_count, nullopt);
+		std::vector<StateIdOpt> nonterm_jumptable(state_count * nonterm_count, nullopt);
 		for (auto item : edges)
 		{
 			const auto[src_ind, target_ind, symbol] = item;
@@ -289,15 +289,15 @@ namespace lolita
 		return LRAutomaton{ states, term_jumptable, nonterm_jumptable };
 	}
 
-	int LookupTargetState(const Grammar& g, const LRAutomaton& atm, int src_state, Symbol s)
+	StateIdOpt LookupTargetState(const Grammar& g, const LRAutomaton& atm, StateId src, Symbol s)
 	{
 		if (s.IsTerminal())
 		{
-			return atm.term_jumptable[src_state * g.TerminalCount() + s.Id()];
+			return atm.term_jumptable[src * g.TerminalCount() + s.Id()];
 		}
 		else
 		{
-			return atm.nonterm_jumptable[src_state * g.NonTerminalCount() + s.Id()];
+			return atm.nonterm_jumptable[src * g.NonTerminalCount() + s.Id()];
 		}
 	}
 
@@ -313,9 +313,9 @@ namespace lolita
 			for (auto j = 0u; j < nonterm_count; ++j)
 			{
 				auto target = atm.nonterm_jumptable[i*nonterm_count + j];
-				if (target != -1)
+				if (target)
 				{
-					builder.Goto(i, g.GetNonTerminal(j), target);
+					builder.Goto(i, g.GetNonTerminal(j), *target);
 				}
 			}
 		}
@@ -326,9 +326,9 @@ namespace lolita
 			for (auto j = 0u; j < term_count; ++j)
 			{
 				const auto target = atm.term_jumptable[i*term_count + j];
-				if (target != -1)
+				if (target)
 				{
-					builder.Shift(i, g.GetTerminal(j), target);
+					builder.Shift(i, g.GetTerminal(j), *target);
 				}
 			}
 		}
@@ -346,7 +346,7 @@ namespace lolita
 		CopyTransitions(builder, *grammar, atm);
 
 		// construct action table(reduce&accept)
-		auto ps = GeneratePredictiveSet(*grammar);
+		auto ps = PredictiveSet::Create(*grammar);
 
 		for (auto id = 0u; id < state_count; ++id)
 		{
@@ -389,7 +389,8 @@ namespace lolita
 		const auto term_count = grammar.TerminalCount();
 		const auto nonterm_count = grammar.NonTerminalCount();
 
-		using ExtendedNonTerm = std::tuple<NonTerminal, unsigned>;
+		// (non_term, start_state)
+		using ExtendedNonTerm = tuple<NonTerminal, StateId>;
 		vector<ExtendedNonTerm> nonterm_reg_lookup;
 		map<ExtendedNonTerm, NonTerminal> nonterm_map;
 
@@ -398,20 +399,21 @@ namespace lolita
 			for (auto j = 0u; j < nonterm_count; ++j)
 			{
 				auto target = atm.nonterm_jumptable[i*nonterm_count + j];
-				if (target == -1)
+				if (!target.has_value())
 					continue;
 
 				auto old_symbol = grammar.GetNonTerminal(j);
 				// TODO: displace debug function QuickName with empty string
-				auto new_symbol = builder2.NewNonTerm(QuickName(grammar, old_symbol, i, target));
+				auto new_symbol = builder2.NewNonTerm(QuickName(grammar, old_symbol, i, *target));
 
 				auto extended = make_tuple(old_symbol, i);
 				nonterm_reg_lookup.push_back(extended);
 				nonterm_map.insert_or_assign(extended, new_symbol);
 			}
 		}
-
-		using ExtendedTerm = tuple<Terminal, unsigned>;
+		
+		// (term, state_state)
+		using ExtendedTerm = tuple<Terminal, StateId>;
 		vector<ExtendedTerm> term_reg_lookup;
 		map<ExtendedTerm, Terminal> term_map;
 
@@ -420,12 +422,12 @@ namespace lolita
 			for (auto j = 0u; j < term_count; ++j)
 			{
 				auto target = atm.term_jumptable[i*term_count + j];
-				if (target == -1)
+				if (!target.has_value())
 					continue;
 
 				auto old_symbol = grammar.GetTerminal(j);
 				// TODO: displace debug function QuickName with empty string
-				auto new_symbol = builder2.NewTerm(QuickName(grammar, old_symbol, i, target));
+				auto new_symbol = builder2.NewTerm(QuickName(grammar, old_symbol, i, *target));
 
 				auto extended = make_tuple(old_symbol, i);
 				term_reg_lookup.push_back(extended);
@@ -434,7 +436,7 @@ namespace lolita
 		}
 
 		// (raw_production, mapped_production, final_state)
-		using ProductionMappingInfo = tuple<const Production*, const Production*, unsigned>;
+		using ProductionMappingInfo = tuple<const Production*, const Production*, StateId>;
 		vector<ProductionMappingInfo> production_record;
 
 		int initial_state;
@@ -463,7 +465,7 @@ namespace lolita
 				for (auto rhs_elem : item.production->Right())
 				{
 					auto target_state = LookupTargetState(grammar, atm, src_state, rhs_elem);
-					assert(target_state != -1);
+					assert(target_state.has_value());
 
 					auto mapped_elem = rhs_elem.IsTerminal()
 						? Symbol{ term_map.at(make_tuple(rhs_elem.AsTerminal(), src_state)) }
@@ -471,7 +473,7 @@ namespace lolita
 
 					rhs.push_back(mapped_elem);
 
-					src_state = target_state;
+					src_state = *target_state;
 				}
 
 				// create production
@@ -484,7 +486,7 @@ namespace lolita
 		auto raw_top = grammar.RootProduction().Right().front().AsNonTerminal();
 		auto mapped_top = nonterm_map.at(make_tuple(raw_top, initial_state));
 		auto ext_grammar = builder2.Build(mapped_top);
-		auto ext_ps = GeneratePredictiveSet(*ext_grammar);
+		auto ext_ps = PredictiveSet::Create(*ext_grammar);
 
 		// merge the same terminals
 		std::vector<bool> norm_ending;
@@ -511,7 +513,7 @@ namespace lolita
 		// construct action table(reduce&accept)
 
 		// (raw_production, final_state, FOLLOW, ending)
-		using ReductionBuffer = tuple<const Production*, unsigned, FlatSet<Terminal>, bool>;
+		using ReductionBuffer = tuple<const Production*, StateId, FlatSet<Terminal>, bool>;
 		std::vector<ReductionBuffer> buffer;
 		for (auto branch : production_record)
 		{

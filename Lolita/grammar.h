@@ -9,6 +9,9 @@
 
 namespace lolita
 {
+	// representation of a grammar
+	// NOTE nonterm with largest id is root by convention
+	// NOTE last production in list is root by convention
 	class Grammar
 	{
 	private:
@@ -25,7 +28,7 @@ namespace lolita
 		size_t NonTerminalCount() const { return nonterms_.size(); }
 		size_t ProductionCount() const { return productions_.size(); }
 
-		NonTerminal RootSymbol() const { return NonTerminal{ NonTerminalCount() - 1 }; }
+		NonTerminal RootSymbol() const { return GetNonTerminal(NonTerminalCount() - 1); }
 		const auto& RootProduction() const { return productions_.back(); }
 
 		const auto& TerminalNames()const { return terms_; }
@@ -92,6 +95,7 @@ namespace lolita
 		std::deque<Production> productions_;
 	};
 
+	// TODO: adds grammar validation?
 	class GrammarBuilder
 	{
 	public:
@@ -123,6 +127,7 @@ namespace lolita
 		StringVec terms_;
 		StringVec nonterms_;
 
+		// use deque to prevent reference invalidation
 		std::deque<Production> productions_;
 	};
 }

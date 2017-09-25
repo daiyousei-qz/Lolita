@@ -35,7 +35,8 @@ namespace lolita
 								ActionAccept,
 								ActionError>;
 
-	using GotoSlot = std::optional<unsigned>;
+	using StateId = unsigned;
+	using StateIdOpt = std::optional<StateId>;
 
 	class Parser
 	{
@@ -45,7 +46,7 @@ namespace lolita
 	public:
 		using Ptr = std::unique_ptr<Parser>;
 
-		Parser(Grammar::SharedPtr g, std::vector<Action> actions, std::vector<GotoSlot> gotos, ConstructionDummy = {})
+		Parser(Grammar::SharedPtr g, std::vector<Action> actions, std::vector<StateIdOpt> gotos, ConstructionDummy = {})
 			: grammar_(std::move(g))
 			, action_table_(std::move(actions))
 			, goto_table_(std::move(gotos)) { }
@@ -86,7 +87,7 @@ namespace lolita
 		const Grammar::SharedPtr grammar_;
 
 		const std::vector<Action> action_table_;
-		const std::vector<GotoSlot> goto_table_;
+		const std::vector<StateIdOpt> goto_table_;
 	};
 
 	class ParserBuilder
@@ -101,7 +102,7 @@ namespace lolita
 		auto ActionTableWidth() const { return grammar_->TerminalCount() + 1; }
 		auto GotoTableWidth() const { return grammar_->NonTerminalCount(); }
 
-		void Shift(unsigned old_state, Terminal tok, unsigned new_state)
+		void Shift(StateId old_state, Terminal tok, StateId new_state)
 		{
 			auto offset = old_state * ActionTableWidth() + tok.Id();
 			auto& entry = action_table_[offset];
@@ -110,7 +111,7 @@ namespace lolita
 			entry = ActionShift{ new_state };
 		}
 
-		void Reduce(unsigned state, Terminal tok, const Production* p)
+		void Reduce(StateId state, Terminal tok, const Production* p)
 		{
 			auto offset = state * ActionTableWidth() + tok.Id();
 			auto& entry = action_table_[offset];
@@ -119,7 +120,7 @@ namespace lolita
 			entry = ActionReduce{ p };
 		}
 
-		void ReduceOnEOF(unsigned state, const Production* p)
+		void ReduceOnEOF(StateId state, const Production* p)
 		{
 			auto offset = state * ActionTableWidth() + ActionTableWidth() - 1;
 			auto& entry = action_table_[offset];
@@ -128,7 +129,7 @@ namespace lolita
 			entry = ActionReduce{ p };
 		}
 
-		void Accept(unsigned state)
+		void Accept(StateId state)
 		{
 			auto offset = state * ActionTableWidth() + ActionTableWidth() - 1;
 			auto& entry = action_table_[offset];
@@ -137,7 +138,7 @@ namespace lolita
 			entry = ActionAccept{};
 		}
 
-		void Goto(unsigned old_state, NonTerminal s, unsigned new_state)
+		void Goto(StateId old_state, NonTerminal s, StateId new_state)
 		{
 			auto offset = old_state * GotoTableWidth() + s.Id();
 			goto_table_[offset] = new_state;
@@ -152,6 +153,6 @@ namespace lolita
 		Grammar::SharedPtr grammar_;
 
 		std::vector<Action> action_table_;
-		std::vector<GotoSlot> goto_table_;
+		std::vector<StateIdOpt> goto_table_;
 	};
 }

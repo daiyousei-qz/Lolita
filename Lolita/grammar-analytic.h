@@ -4,11 +4,10 @@
 
 namespace lolita
 {
+	// FIRST and FOLLOW sets of a grammar
 	class PredictiveSet
 	{
 	private:
-		friend PredictiveSet GeneratePredictiveSet(const Grammar& g);
-			
 		PredictiveSet(std::vector<TermSet> first, std::vector<TermSet> follow,
 					  std::vector<bool> produce_e, std::vector<bool> ending)
 			: first_sets_(std::move(first))
@@ -17,6 +16,8 @@ namespace lolita
 			, ending_symbol_(std::move(ending)) { }
 
 	public:
+		static PredictiveSet Create(const Grammar& g);
+
 		const TermSet& First(NonTerminal s) const
 		{
 			return first_sets_[s.Id()];
@@ -41,5 +42,4 @@ namespace lolita
 		std::vector<TermSet> follow_sets_;
 	};
 
-	PredictiveSet GeneratePredictiveSet(const Grammar& g);
 }
