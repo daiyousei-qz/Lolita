@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "grammar.h"
 #include "grammar-analytic.h"
+#include "debug.h"
 #include <set>
 #include <map>
 #include <unordered_map>
@@ -106,12 +107,15 @@ namespace lolita
 				using T = std::decay_t<decltype(action)>;
 				if constexpr (std::is_same_v<T, ActionShift>)
 				{
+					printf("Shift: %s\n", grammar_->LookupName(grammar_->GetTerminal(tok)).c_str());
+
 					ctx.push(StateSlot{ grammar_->GetTerminal(tok), action.target_state });
 					hungry = false;
 				}
 				else if constexpr (std::is_same_v<T, ActionReduce>)
 				{
 					auto production = action.production;
+					printf("Reduce: %s\n", TextifyProduction(*grammar_, *production).c_str());
 
 					for (auto i = 0u; i < production->Right().size(); ++i)
 						ctx.pop();

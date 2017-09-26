@@ -1,77 +1,205 @@
-#include <cstdio>
+#include "lexer.h"
 #include "grammar.h"
 #include "debug.h"
+#include <cstdio>
+#include <fstream>
+#include <sstream>
+#include <vector>
 
 namespace lolita
 {
+	Lexer::SharedPtr ConstructLexer(const StringVec& rules);
+
 	Parser::Ptr CreateSLRParser(const Grammar::SharedPtr& g);
 	Parser::Ptr CreateLALRParser(const Grammar::SharedPtr& g);
 }
 
 using namespace lolita;
+using namespace std;
 
-Grammar::SharedPtr CreateGrammar()
+static constexpr auto umax = numeric_limits<unsigned>::max();
+
+string Trim(const string& s)
 {
-	GrammarBuilder builder{};
+	auto s1 = find_if_not(begin(s), end(s), isspace);
+	auto s2 = find_if_not(rbegin(s), rend(s), isspace);
 
-	auto term_id = builder.NewTerm("id");
-	auto term_plus = builder.NewTerm("+");
-	auto term_times = builder.NewTerm("*");
-	auto term_lp = builder.NewTerm("(");
-	auto term_rp = builder.NewTerm(")");
+	auto d1 = distance(begin(s), s1);
+	auto d2 = distance(rbegin(s), s2);
 
-	auto nonterm_E = builder.NewNonTerm("E");
-	auto nonterm_T = builder.NewNonTerm("T");
-	auto nonterm_F = builder.NewNonTerm("F");
-
-	builder.NewProduction(nonterm_E, { nonterm_T });
-	builder.NewProduction(nonterm_E, { nonterm_E, term_plus, nonterm_T });
-
-	builder.NewProduction(nonterm_T, { nonterm_F});
-	builder.NewProduction(nonterm_T, { nonterm_T, term_times, nonterm_F });
-
-	builder.NewProduction(nonterm_F, { term_lp, nonterm_E, term_rp });
-	builder.NewProduction(nonterm_F, { term_id });
-
-	return builder.Build(nonterm_E);
+	return s.substr(d1, s.length() - d1 - d2);
 }
 
-Grammar::SharedPtr CreateGrammar2()
+vector<string> Split(const string& s, char delimiter)
 {
-	GrammarBuilder builder{};
+	vector<string> result;
 
-	auto term_eq = builder.NewTerm("=");
-	auto term_x = builder.NewTerm("x");
-	auto term_star = builder.NewTerm("*");
+	auto s1 = begin(s);
+	while (s1 != end(s))
+	{
+		auto s2 = find(s1, end(s), delimiter);
+		result.push_back(string(s1, s2));
+		
+		if (s2 == s.end())
+		{
+			break;
+		}
+		else
+		{
+			s1 = next(s2);
+		}
+	}
 
-	auto nonterm_N = builder.NewNonTerm("N");
-	auto nonterm_E = builder.NewNonTerm("E");
-	auto nonterm_V = builder.NewNonTerm("V");
+	return result;
+}
 
-	builder.NewProduction(nonterm_N, { nonterm_V, term_eq, nonterm_E });
-	builder.NewProduction(nonterm_N, { nonterm_E });
+vector<string> SplitTrimmed(const string& s, char delimiter)
+{
+	auto result = Split(s, delimiter);
+	for (auto& elem : result)
+	{
+		elem = Trim(elem);
+	}
 
-	builder.NewProduction(nonterm_E, { nonterm_V });
+	return result;
+}
 
-	builder.NewProduction(nonterm_V, { term_x });
-	builder.NewProduction(nonterm_V, { term_star, nonterm_E });
+auto LoadTerms(ifstream& file)
+{
+	vector<pair<string, string>> result;
+	char buf[1024];
 
-	return builder.Build(nonterm_N);
+	while (file)
+	{
+		file.getline(buf, sizeof buf);
+
+		if (Trim(string(buf)).empty()) continue;
+		if (buf[0] == '#') continue;
+		if (buf[0] == ';') break;
+
+		auto data = SplitTrimmed(string(buf), ':');
+
+		result.emplace_back(data[0], data[1]);
+	}
+
+	return result;
+}
+
+auto LoadNonTerms(ifstream& file)
+{
+	vector<string> result;
+	char buf[1024];
+
+	while (file)
+	{
+		file.getline(buf, sizeof buf);
+
+		if (Trim(string(buf)).empty()) continue;
+		if (buf[0] == '#') continue;
+		if (buf[0] == ';') break;
+
+		auto name = Trim(string(buf));
+
+		result.emplace_back(name);
+	}
+
+	return result;
+}
+
+auto LoadProductions(ifstream& file)
+{
+	vector<vector<string>> result;
+	char buf[1024];
+
+	while (file)
+	{
+		file.getline(buf, sizeof buf);
+
+		if (Trim(string(buf)).empty()) continue;
+		if (buf[0] == '#') continue;
+		if (buf[0] == ';') break;
+
+		auto data1 = SplitTrimmed(string(buf), ':');
+		auto data2 = SplitTrimmed(data1[1], ' ');
+
+		vector<string> v;
+		v.push_back(data1.front());
+		v.insert(v.end(), begin(data2), end(data2));
+
+		result.push_back(v);
+	}
+
+	return result;
 }
 
 int main()
 {
-	auto grammar = CreateGrammar2();
-	PrintGrammar(*grammar);
+	ifstream file{ "C:\\Users\\sunks\\Desktop\\aqua-spec.txt" };
+	auto term_def = LoadTerms(file);
+	auto nonterm_def = LoadNonTerms(file);
+	auto production_def = LoadProductions(file);
 
+	// construct lexer
+	vector<string> names;
+	vector<string> rules;
+	for (const auto& item : term_def)
+	{
+		names.push_back(item.first);
+		rules.push_back(item.second);
+	}
+	auto lexer = ConstructLexer(rules);
+
+	// construct grammar
+	GrammarBuilder builder;
+	unordered_map<string, Symbol> symbols;
+
+	for (const auto& term_name : names)
+	{
+		auto s = builder.NewTerm(term_name);
+		symbols.insert_or_assign(term_name, s);
+	}
+	for (const auto& nonterm_name : nonterm_def)
+	{
+		auto s = builder.NewNonTerm(nonterm_name);
+		symbols.insert_or_assign(nonterm_name, s);
+	}
+
+	for (const auto& p : production_def)
+	{
+		vector<Symbol> ss;
+		for (const auto& name : p)
+		{
+			ss.push_back(symbols.at(name));
+		}
+
+		auto lhs = ss.front().AsNonTerminal();
+		ss.erase(ss.begin());
+
+		builder.NewProduction(lhs, ss);
+	}
+
+	auto root = symbols.at(nonterm_def[0]).AsNonTerminal();
+	auto grammar = builder.Build(root);
 	auto parser = CreateLALRParser(grammar);
-	printf("\n");
-	parser->Print();
+
+	ifstream codefile{ "C:\\Users\\sunks\\Desktop\\test_fab.txt" };
+	string code_str((istreambuf_iterator<char>(codefile)),
+					 istreambuf_iterator<char>());
+	
+	auto tokens = Tokenize(*lexer, code_str);
+	auto iter = std::remove_if(begin(tokens), end(tokens), [](auto tok) {return tok.category == 25; });
+	tokens.erase(iter, tokens.end());
+	for (auto tok : tokens)
+	{
+		printf("(%2d): %s\n", tok.category, code_str.substr(tok.offset, tok.length).c_str());
+	}
 
 	ParsingStack ctx;
-	parser->Feed(ctx, 2);
-	parser->Feed(ctx, 1);
+	for (auto tok : tokens)
+	{
+		parser->Feed(ctx, tok.category);
+	}
 	parser->Finalize(ctx);
-
+	
 	system("pause");
 }

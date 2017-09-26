@@ -117,7 +117,6 @@
     <ClInclude Include="flat-set.hpp" />
     <ClInclude Include="grammar-analytic.h" />
     <ClInclude Include="grammar.h" />
-    <ClInclude Include="lex-rule.h" />
     <ClInclude Include="lexer.h" />
     <ClInclude Include="lolita-basic.h" />
     <ClInclude Include="parser.h" />
@@ -125,6 +124,7 @@
     <ClInclude Include="regex.h" />
     <ClInclude Include="symbol.h" />
     <ClInclude Include="table.hpp" />
+    <ClInclude Include="token.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="debug.cpp" />
@@ -132,6 +132,7 @@
     <ClCompile Include="grammar.cpp" />
     <ClCompile Include="lexer.cpp" />
     <ClCompile Include="parser.cpp" />
+    <ClCompile Include="regex.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="symbol.cpp" />
   </ItemGroup>

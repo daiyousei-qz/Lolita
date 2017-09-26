@@ -4,17 +4,20 @@
 
 namespace lolita
 {
-
 	// Basic Decl
 	//
 
 	class RegexExpr;
+	class LabelledExpr;
+
+	class RootExpr;
 	class EntityExpr;
 	class ConcatenationExpr;
 	class AlternationExpr;
-	class StarExpr;
+	class ClosureExpr;
 
-	using RegexExprVec = std::vector<const RegexExpr*>;
+	using RegexExprPtr = const RegexExpr*;
+	using RegexExprVec = std::vector<RegexExprPtr>;
 
 	// Data classes
 	//
@@ -29,6 +32,7 @@ namespace lolita
 		{
 			assert(min <= max);
 		}
+		CharRange(int ch) : CharRange(ch, ch) { }
 
 		int Min() const { return min_; }
 		int Max() const { return max_; }
@@ -42,32 +46,11 @@ namespace lolita
 		int min_, max_;
 	};
 
-	// [min, max]
-	class Repetition
+	enum class ClosureStrategy
 	{
-	public:
-		// Constructs a Reptition in a specific range
-		// NOTES if max is too large, it may be recognized as infinity
-		Repetition(size_t min, size_t max)
-			: min_(min), max_(max)
-		{
-			assert(min <= max && max > 0);
-		}
-
-		// Constructs a Reptition that goes infinity
-		Repetition(size_t min)
-			: Repetition(min, kInfinityThreshold + 1) { }
-
-		size_t Min() const { return min_; }
-		size_t Max() const { return max_; }
-
-		bool GoInfinity() const { return max_ > kInfinityThreshold; }
-
-	public:
-		static constexpr size_t kInfinityThreshold = 1000;
-
-	private:
-		size_t min_, max_;
+		Optional,
+		Star,
+		Plus,
 	};
 
 	// Visit
@@ -76,10 +59,11 @@ namespace lolita
 	class RegexExprVisitor
 	{
 	public:
+		virtual void Visit(const RootExpr&) = 0;
 		virtual void Visit(const EntityExpr&) = 0;
 		virtual void Visit(const ConcatenationExpr&) = 0;
 		virtual void Visit(const AlternationExpr&) = 0;
-		virtual void Visit(const StarExpr&) = 0;
+		virtual void Visit(const ClosureExpr&) = 0;
 	};
 
 	// Expression Model
@@ -94,7 +78,31 @@ namespace lolita
 		virtual void Accept(RegexExprVisitor&) const = 0;
 	};
 
-	class EntityExpr : public RegexExpr
+	class LabelledExpr
+	{
+	public:
+		LabelledExpr() = default;
+		virtual ~LabelledExpr() = default;
+
+		virtual bool TestPassage(int ch) const = 0;
+	};
+
+	class RootExpr : public RegexExpr, public LabelledExpr
+	{
+	public:
+		RootExpr(RegexExprPtr child)
+			: child_(child) { }
+
+		auto Child() const { return child_; }
+		
+		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
+		bool TestPassage(int ch) const override { return true; }
+
+	private:
+		RegexExprPtr child_;
+	};
+
+	class EntityExpr : public RegexExpr, public LabelledExpr
 	{
 	public:
 		EntityExpr(CharRange rg)
@@ -103,6 +111,7 @@ namespace lolita
 		auto Range() const { return range_; }
 
 		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
+		bool TestPassage(int ch) const override { return range_.Contain(ch); }
 
 	private:
 		CharRange range_;
@@ -136,17 +145,19 @@ namespace lolita
 		RegexExprVec any_;
 	};
 
-	class StarExpr : public RegexExpr
+	class ClosureExpr : public RegexExpr
 	{
 	public:
-		StarExpr(RegexExpr* child)
-			: child_(child) { }
+		ClosureExpr(RegexExprPtr child, ClosureStrategy strategy)
+			: child_(child), strategy_(strategy) { }
 
 		auto Child() const { return child_; }
+		auto Strategy() const { return strategy_; }
 
 		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
 
 	public:
-		RegexExpr* child_;
+		RegexExprPtr child_;
+		ClosureStrategy strategy_;
 	};
 }

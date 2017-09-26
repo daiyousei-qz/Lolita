@@ -2,6 +2,7 @@
 #include "grammar.h"
 #include "grammar-analytic.h"
 #include "parser.h"
+#include "lexer.h"
 #include <set>
 
 namespace lolita
@@ -17,4 +18,27 @@ namespace lolita
 	void PrintPredictiveSet(const Grammar& g, const PredictiveSet& ps);
 
 	void PrintCanonicalItems(const Grammar& grammar, const std::set<FlatSet<Item>>& collection);
+
+	inline void PrintLexer(const Lexer& lexer)
+	{
+		for (int s = 0; s < lexer.StateCount(); ++s)
+		{
+			printf("DfaState %d", s);
+			if (lexer.IsAccepting(s))
+			{
+				auto category = lexer.LookupAcceptingCategory(s);
+				printf(" | %d - %s", category, lexer.LookupCategoryName(category).c_str());
+			}
+			printf("\n");
+
+			for (int ch = 0; ch < 128; ++ch)
+			{
+				auto target = lexer.Transit(s, ch);
+				if (target != -1)
+				{
+					printf("  char of %c --> DfaState %d\n", ch, target);
+				}
+			}
+		}
+	}
 }

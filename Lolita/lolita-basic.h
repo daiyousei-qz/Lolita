@@ -15,5 +15,7 @@ namespace lolita
 	using std::stack;
 	using std::deque;
 
+	using zstring = const char*;
+
 	using StringVec = std::vector<std::string>;
 }
