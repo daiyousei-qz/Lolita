@@ -1,6 +1,8 @@
 #include "regex.h"
 #include "arena.hpp"
 
+using namespace std;
+
 namespace lolita
 {
 	// Parsing
@@ -49,6 +51,8 @@ namespace lolita
 		else
 		{
 			++str;
+			if (*str == '\0') throw 0; // unexpected eof
+
 			return EscapeRawCharacter(*str);
 		}
 	}
@@ -68,8 +72,6 @@ namespace lolita
 		bool reverse = false;
 		if (*p == '^')
 		{
-			throw 0; // not supported yet
-
 			reverse = true;
 			++p;
 		}
@@ -123,10 +125,65 @@ namespace lolita
 		if (joinable) ranges.push_back(CharRange{ last_ch });
 
 		if (!*p) throw 0; // unexpected eof
-		str = p; // don't discard ']'
+		if (ranges.empty()) throw 0; // empty range
 
-		RegexExprVec result;
+		str = p; // update cursor, but don't discard ']'
+
+		// merge ranges 
+		sort(ranges.begin(), ranges.end(), [](auto lhs, auto rhs) { return lhs.Min() < rhs.Min(); });
+		
+		vector<CharRange> merged_ranges{ ranges.front() };
 		for (auto rg : ranges)
+		{
+			auto last_rg = merged_ranges.back();
+			if (rg.Min() > last_rg.Min())
+			{
+				merged_ranges.push_back(rg);
+			}
+			else
+			{
+				auto new_min = last_rg.Min();
+				auto new_max = max(rg.Max(), last_rg.Max());
+
+				merged_ranges.back() = CharRange{ new_min, new_max };
+			}
+		}
+
+		// reverse if specified
+		if (reverse)
+		{
+			vector<CharRange> tmp;
+			if (merged_ranges.front().Min() > 0)
+				tmp.push_back(CharRange{ 0, merged_ranges.front().Min() - 1 });
+
+			for (auto it = merged_ranges.begin(); it != merged_ranges.end(); ++it)
+			{
+				auto next_it = next(it);
+				if (next_it != merged_ranges.end())
+				{
+					auto new_min = it->Max() + 1;
+					auto new_max = next_it->Min() - 1;
+
+					if (new_min <= new_max)
+					{
+						tmp.push_back(CharRange{ new_min, new_max });
+					}
+				}
+				else
+				{
+					if (it->Max() < 127)
+					{
+						tmp.push_back(CharRange{ it->Max() + 1, 127 });
+					}
+				}
+			}
+
+			merged_ranges = tmp;
+		}
+
+		// construct expressions
+		RegexExprVec result;
+		for (auto rg : merged_ranges)
 		{
 			result.push_back(arena.Construct<EntityExpr>(rg));
 		}

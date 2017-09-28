@@ -60,5 +60,7 @@ namespace lolita
 		vector<string> category_names_;
 	};
 
+	Lexer::SharedPtr ConstructLexer(const StringVec& rules);
+
 	vector<Token> Tokenize(const Lexer& lexer, const string& s);
 }

@@ -72,6 +72,9 @@
     <ClInclude Include="token.h">
       <Filter>LexerGen\Header</Filter>
     </ClInclude>
+    <ClInclude Include="config.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
@@ -97,6 +100,9 @@
     </ClCompile>
     <ClCompile Include="regex.cpp">
       <Filter>LexerGen\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="config.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -8,6 +8,7 @@
 #include <optional>
 #include <memory>
 #include <type_traits>
+#include <functional>
 
 namespace lolita
 {
@@ -17,7 +18,11 @@ namespace lolita
 		unsigned state;
 	};
 
-	using ParsingStack = std::stack<StateSlot>;
+	struct ParsingContext
+	{
+		std::stack<StateSlot> states;
+		std::function<void(const Production*)> reduction_callback;
+	};
 
 	struct ActionShift 
 	{
@@ -38,6 +43,7 @@ namespace lolita
 	using StateId = unsigned;
 	using StateIdOpt = std::optional<StateId>;
 
+	
 	class Parser
 	{
 	private:
@@ -45,6 +51,7 @@ namespace lolita
 		struct ConstructionDummy { };
 	public:
 		using Ptr = std::unique_ptr<Parser>;
+		using SharedPtr = std::shared_ptr<Parser>;
 
 		Parser(Grammar::SharedPtr g, std::vector<Action> actions, std::vector<StateIdOpt> gotos, ConstructionDummy = {})
 			: grammar_(std::move(g))
@@ -63,7 +70,7 @@ namespace lolita
 			return *grammar_;
 		}
 
-		void Feed(ParsingStack& ctx, unsigned tok)
+		void Feed(ParsingContext& ctx, unsigned tok)
 		{
 			assert(tok < grammar_->TerminalCount());
 
@@ -71,7 +78,7 @@ namespace lolita
 			assert(!result); // i.e. parser should require more inputs
 		}
 
-		bool Finalize(ParsingStack& ctx)
+		bool Finalize(ParsingContext& ctx)
 		{
 			return FeedInternal(ctx, ActionTableWidth() - 1);
 		}
@@ -79,9 +86,9 @@ namespace lolita
 		void Print() const;
 
 	private:
-		bool FeedInternal(ParsingStack& ctx, unsigned tok);
+		bool FeedInternal(ParsingContext& ctx, unsigned tok);
 
-		unsigned LookupCurrentState(const ParsingStack& ctx);
+		unsigned LookupCurrentState(const ParsingContext& ctx);
 
 	private:
 		const Grammar::SharedPtr grammar_;
@@ -144,9 +151,9 @@ namespace lolita
 			goto_table_[offset] = new_state;
 		}
 
-		Parser::Ptr Build()
+		Parser::SharedPtr Build()
 		{
-			return std::make_unique<Parser>(grammar_, action_table_, goto_table_);
+			return std::make_shared<Parser>(grammar_, action_table_, goto_table_);
 		}
 
 	private:
@@ -155,4 +162,7 @@ namespace lolita
 		std::vector<Action> action_table_;
 		std::vector<StateIdOpt> goto_table_;
 	};
+
+	Parser::SharedPtr CreateSLRParser(const Grammar::SharedPtr& grammar);
+	Parser::SharedPtr CreateLALRParser(const Grammar::SharedPtr& grammar);
 }

@@ -93,7 +93,8 @@ namespace lolita
 
 	}
 
-	bool Parser::FeedInternal(ParsingStack& ctx, unsigned tok)
+	// TODO: remove those debug info
+	bool Parser::FeedInternal(ParsingContext& ctx, unsigned tok)
 	{
 		bool accepted = false;
 		auto hungry = true;
@@ -107,24 +108,22 @@ namespace lolita
 				using T = std::decay_t<decltype(action)>;
 				if constexpr (std::is_same_v<T, ActionShift>)
 				{
-					printf("Shift: %s\n", grammar_->LookupName(grammar_->GetTerminal(tok)).c_str());
-
-					ctx.push(StateSlot{ grammar_->GetTerminal(tok), action.target_state });
+					ctx.states.push(StateSlot{ grammar_->GetTerminal(tok), action.target_state });
 					hungry = false;
 				}
 				else if constexpr (std::is_same_v<T, ActionReduce>)
 				{
 					auto production = action.production;
-					printf("Reduce: %s\n", TextifyProduction(*grammar_, *production).c_str());
 
-					for (auto i = 0u; i < production->Right().size(); ++i)
-						ctx.pop();
+					for (auto i = 0; i < production->Right().size(); ++i)
+						ctx.states.pop();
 
 					auto src_state = LookupCurrentState(ctx);
 					auto goto_ind = src_state*GotoTableWidth() + production->Left().Id();
 					auto target_state = goto_table_[goto_ind].value();
 
-					ctx.push(StateSlot{ production->Left(), target_state });
+					ctx.states.push(StateSlot{ production->Left(), target_state });
+					ctx.reduction_callback(production);
 				}
 				else if constexpr (std::is_same_v<T, ActionAccept>)
 				{
@@ -142,9 +141,10 @@ namespace lolita
 		return accepted;
 	}
 
-	StateId Parser::LookupCurrentState(const ParsingStack& ctx)
+	StateId Parser::LookupCurrentState(const ParsingContext& ctx)
 	{
-		if (ctx.empty())
+		const auto& states = ctx.states;
+		if (states.empty())
 		{
 			// TODO: is initial state 0?
 			// return initial state
@@ -152,7 +152,7 @@ namespace lolita
 		}
 		else
 		{
-			return ctx.top().state;
+			return states.top().state;
 		}
 	}
 
@@ -338,7 +338,7 @@ namespace lolita
 		}
 	}
 
-	Parser::Ptr CreateSLRParser(const Grammar::SharedPtr& grammar)
+	Parser::SharedPtr CreateSLRParser(const Grammar::SharedPtr& grammar)
 	{
 		auto atm = GenerateLRAutomaton(*grammar);
 
@@ -561,7 +561,7 @@ namespace lolita
 		}
 	}
 
-	Parser::Ptr CreateLALRParser(const Grammar::SharedPtr& grammar)
+	Parser::SharedPtr CreateLALRParser(const Grammar::SharedPtr& grammar)
 	{
 		auto atm = GenerateLRAutomaton(*grammar);
 

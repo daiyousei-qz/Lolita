@@ -113,6 +113,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="arena.hpp" />
+    <ClInclude Include="config.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="flat-set.hpp" />
     <ClInclude Include="grammar-analytic.h" />
@@ -127,6 +128,7 @@
     <ClInclude Include="token.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="config.cpp" />
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="grammar-analytic.cpp" />
     <ClCompile Include="grammar.cpp" />
