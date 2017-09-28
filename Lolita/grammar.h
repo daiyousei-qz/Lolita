@@ -9,6 +9,9 @@
 
 namespace lolita
 {
+	// TODO: make this shared utilities for both lexer and parser
+	//	     i.e. add lexical definitions of terminals
+
 	// representation of a grammar
 	// NOTE nonterm with largest id is root by convention
 	// NOTE last production in list is root by convention

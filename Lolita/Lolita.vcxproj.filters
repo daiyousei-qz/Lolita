@@ -75,6 +75,9 @@
     <ClInclude Include="config.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="GeneratedParser.h">
+      <Filter>Debug</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
@@ -103,6 +106,9 @@
     </ClCompile>
     <ClCompile Include="config.cpp">
       <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedParser.cpp">
+      <Filter>Debug</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

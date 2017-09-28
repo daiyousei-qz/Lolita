@@ -116,6 +116,7 @@
     <ClInclude Include="config.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="flat-set.hpp" />
+    <ClInclude Include="GeneratedParser.h" />
     <ClInclude Include="grammar-analytic.h" />
     <ClInclude Include="grammar.h" />
     <ClInclude Include="lexer.h" />
@@ -130,6 +131,7 @@
   <ItemGroup>
     <ClCompile Include="config.cpp" />
     <ClCompile Include="debug.cpp" />
+    <ClCompile Include="GeneratedParser.cpp" />
     <ClCompile Include="grammar-analytic.cpp" />
     <ClCompile Include="grammar.cpp" />
     <ClCompile Include="lexer.cpp" />
