@@ -132,6 +132,7 @@
     <ClInclude Include="table.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="config.cpp" />
     <ClCompile Include="grammar-analytic.cpp" />
     <ClCompile Include="grammar.cpp" />
     <ClCompile Include="lexing-automaton.cpp" />
