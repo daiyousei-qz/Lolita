@@ -1,8 +1,8 @@
 #pragma once
-#include "lolita-basic.h"
 #include <functional>
+#include <cassert>
 
-namespace lolita
+namespace eds::loli
 {
 	// Basic Decl
 	//
@@ -12,12 +12,13 @@ namespace lolita
 
 	class RootExpr;
 	class EntityExpr;
-	class ConcatenationExpr;
-	class AlternationExpr;
+	class SequenceExpr;
+	class ChoiceExpr;
 	class ClosureExpr;
 
 	using RegexExprPtr = const RegexExpr*;
-	using RegexExprVec = std::vector<RegexExprPtr>;
+	using RootExprVec = std::vector<RootExpr*>;
+	using RegexExprVec = std::vector<const RegexExpr*>;
 
 	// Data classes
 	//
@@ -46,14 +47,14 @@ namespace lolita
 		int min_, max_;
 	};
 
-	enum class ClosureStrategy
+	enum class RepetitionMode
 	{
 		Optional,
 		Star,
 		Plus,
 	};
 
-	// Visit
+	// Visitor
 	//
 
 	class RegexExprVisitor
@@ -61,8 +62,8 @@ namespace lolita
 	public:
 		virtual void Visit(const RootExpr&) = 0;
 		virtual void Visit(const EntityExpr&) = 0;
-		virtual void Visit(const ConcatenationExpr&) = 0;
-		virtual void Visit(const AlternationExpr&) = 0;
+		virtual void Visit(const SequenceExpr&) = 0;
+		virtual void Visit(const ChoiceExpr&) = 0;
 		virtual void Visit(const ClosureExpr&) = 0;
 	};
 
@@ -78,12 +79,14 @@ namespace lolita
 		virtual void Accept(RegexExprVisitor&) const = 0;
 	};
 
+	// a LabelledExpr may attach a position id on conversion to DFA
 	class LabelledExpr
 	{
 	public:
 		LabelledExpr() = default;
 		virtual ~LabelledExpr() = default;
 
+		// testify if ch could pass this position
 		virtual bool TestPassage(int ch) const = 0;
 	};
 
@@ -94,7 +97,7 @@ namespace lolita
 			: child_(child) { }
 
 		auto Child() const { return child_; }
-		
+
 		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
 		bool TestPassage(int ch) const override { return true; }
 
@@ -117,10 +120,10 @@ namespace lolita
 		CharRange range_;
 	};
 
-	class ConcatenationExpr : public RegexExpr
+	class SequenceExpr : public RegexExpr
 	{
 	public:
-		ConcatenationExpr(const RegexExprVec& seq)
+		SequenceExpr(const RegexExprVec& seq)
 			: seq_(seq) { }
 
 		const auto& Children() const { return seq_; }
@@ -131,10 +134,10 @@ namespace lolita
 		RegexExprVec seq_;
 	};
 
-	class AlternationExpr : public RegexExpr
+	class ChoiceExpr : public RegexExpr
 	{
 	public:
-		AlternationExpr(const RegexExprVec& any)
+		ChoiceExpr(const RegexExprVec& any)
 			: any_(any) { }
 
 		const auto& Children() const { return any_; }
@@ -148,16 +151,16 @@ namespace lolita
 	class ClosureExpr : public RegexExpr
 	{
 	public:
-		ClosureExpr(RegexExprPtr child, ClosureStrategy strategy)
-			: child_(child), strategy_(strategy) { }
+		ClosureExpr(RegexExprPtr child, RepetitionMode strategy)
+			: child_(child), mode_(strategy) { }
 
 		auto Child() const { return child_; }
-		auto Strategy() const { return strategy_; }
+		auto Mode() const { return mode_; }
 
 		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
 
 	public:
 		RegexExprPtr child_;
-		ClosureStrategy strategy_;
+		RepetitionMode mode_;
 	};
 }

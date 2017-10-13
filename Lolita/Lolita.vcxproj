@@ -82,7 +82,9 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>C:\Users\sunks\Documents\Projects\edslib\edslib\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -112,33 +114,31 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="arena.hpp" />
+    <ClInclude Include="ast-basic.h" />
+    <ClInclude Include="ast-handle.h" />
+    <ClInclude Include="ast-trait.h" />
+    <ClInclude Include="basic.h" />
     <ClInclude Include="config.h" />
-    <ClInclude Include="debug.h" />
-    <ClInclude Include="flat-set.hpp" />
-    <ClInclude Include="GeneratedParser.h" />
     <ClInclude Include="grammar-analytic.h" />
     <ClInclude Include="grammar.h" />
-    <ClInclude Include="lexer.h" />
-    <ClInclude Include="lolita-basic.h" />
+    <ClInclude Include="lexing-automaton.h" />
     <ClInclude Include="parser.h" />
-    <ClInclude Include="range.hpp" />
+    <ClInclude Include="parsing-bootstrap.h" />
+    <ClInclude Include="parsing-automaton.h" />
+    <ClInclude Include="parsing-table.h" />
     <ClInclude Include="regex.h" />
+    <ClInclude Include="serialization.h" />
     <ClInclude Include="symbol.h" />
     <ClInclude Include="table.hpp" />
-    <ClInclude Include="token.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="config.cpp" />
-    <ClCompile Include="debug.cpp" />
-    <ClCompile Include="GeneratedParser.cpp" />
     <ClCompile Include="grammar-analytic.cpp" />
     <ClCompile Include="grammar.cpp" />
-    <ClCompile Include="lexer.cpp" />
-    <ClCompile Include="parser.cpp" />
+    <ClCompile Include="lexing-automaton.cpp" />
+    <ClCompile Include="parsing-automaton.cpp" />
+    <ClCompile Include="parsing-table.cpp" />
     <ClCompile Include="regex.cpp" />
     <ClCompile Include="Source.cpp" />
-    <ClCompile Include="symbol.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,19 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="ParserGen">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
-    <Filter Include="LexerGen">
-      <UniqueIdentifier>{ceced5e8-1887-4ea5-b0c5-be39fd1e177d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ParserGen\Header">
-      <UniqueIdentifier>{6fbcee8b-95b2-49ae-b5e7-cb2584d91deb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ParserGen\Source">
-      <UniqueIdentifier>{0ea3b778-4d91-4bcd-9fa9-b4fdeebb667a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="External">
       <UniqueIdentifier>{a77c6d6d-4613-477a-86f1-ce39f7a46ed6}</UniqueIdentifier>
     </Filter>
@@ -25,90 +12,84 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="LexerGen\Header">
-      <UniqueIdentifier>{024bfe7b-0a2b-4a83-8420-3632c7c16340}</UniqueIdentifier>
+    <Filter Include="Grammar">
+      <UniqueIdentifier>{b579fe80-9e2a-4351-894d-e5689a4f982c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="LexerGen\Source">
-      <UniqueIdentifier>{88d975fb-7099-4226-8f4c-ee2e6c8997ad}</UniqueIdentifier>
+    <Filter Include="Automaton">
+      <UniqueIdentifier>{be3d1abe-a8a7-4850-a219-9df07243e444}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="lolita-basic.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="grammar.h">
-      <Filter>ParserGen\Header</Filter>
-    </ClInclude>
-    <ClInclude Include="grammar-analytic.h">
-      <Filter>ParserGen\Header</Filter>
-    </ClInclude>
-    <ClInclude Include="parser.h">
-      <Filter>ParserGen\Header</Filter>
-    </ClInclude>
-    <ClInclude Include="symbol.h">
-      <Filter>ParserGen\Header</Filter>
-    </ClInclude>
-    <ClInclude Include="arena.hpp">
-      <Filter>External</Filter>
-    </ClInclude>
-    <ClInclude Include="flat-set.hpp">
-      <Filter>External</Filter>
-    </ClInclude>
-    <ClInclude Include="range.hpp">
-      <Filter>External</Filter>
-    </ClInclude>
     <ClInclude Include="table.hpp">
       <Filter>External</Filter>
     </ClInclude>
-    <ClInclude Include="debug.h">
-      <Filter>Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="lexer.h">
-      <Filter>LexerGen\Header</Filter>
-    </ClInclude>
     <ClInclude Include="regex.h">
-      <Filter>LexerGen\Header</Filter>
+      <Filter>Automaton</Filter>
     </ClInclude>
-    <ClInclude Include="token.h">
-      <Filter>LexerGen\Header</Filter>
+    <ClInclude Include="basic.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="grammar-analytic.h">
+      <Filter>Grammar</Filter>
+    </ClInclude>
+    <ClInclude Include="grammar.h">
+      <Filter>Grammar</Filter>
+    </ClInclude>
+    <ClInclude Include="symbol.h">
+      <Filter>Grammar</Filter>
+    </ClInclude>
+    <ClInclude Include="lexing-automaton.h">
+      <Filter>Automaton</Filter>
+    </ClInclude>
+    <ClInclude Include="parsing-automaton.h">
+      <Filter>Automaton</Filter>
+    </ClInclude>
+    <ClInclude Include="parsing-table.h">
+      <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="config.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="GeneratedParser.h">
-      <Filter>Debug</Filter>
+    <ClInclude Include="serialization.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ast-handle.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ast-basic.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ast-trait.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="parsing-bootstrap.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="parser.h">
+      <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
       <Filter>Debug</Filter>
     </ClCompile>
+    <ClCompile Include="regex.cpp">
+      <Filter>Automaton</Filter>
+    </ClCompile>
     <ClCompile Include="grammar.cpp">
-      <Filter>ParserGen\Source</Filter>
+      <Filter>Grammar</Filter>
     </ClCompile>
     <ClCompile Include="grammar-analytic.cpp">
-      <Filter>ParserGen\Source</Filter>
+      <Filter>Grammar</Filter>
     </ClCompile>
-    <ClCompile Include="parser.cpp">
-      <Filter>ParserGen\Source</Filter>
+    <ClCompile Include="lexing-automaton.cpp">
+      <Filter>Automaton</Filter>
     </ClCompile>
-    <ClCompile Include="symbol.cpp">
-      <Filter>ParserGen\Source</Filter>
+    <ClCompile Include="parsing-automaton.cpp">
+      <Filter>Automaton</Filter>
     </ClCompile>
-    <ClCompile Include="debug.cpp">
-      <Filter>Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="lexer.cpp">
-      <Filter>LexerGen\Source</Filter>
-    </ClCompile>
-    <ClCompile Include="regex.cpp">
-      <Filter>LexerGen\Source</Filter>
-    </ClCompile>
-    <ClCompile Include="config.cpp">
+    <ClCompile Include="parsing-table.cpp">
       <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedParser.cpp">
-      <Filter>Debug</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

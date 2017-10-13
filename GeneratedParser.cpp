@@ -1,5 +1,6 @@
 #include "GeneratedParser.h"
 #include <string>
+#include <string_view>
 #include <vector>
 #include <variant>
 #include <functional>
@@ -41,14 +42,55 @@ namespace lolita
 	union AstStackSlot
 	{
 		string_view tok_data;
+
+		bool bool_val;
+		int enum_val;
 		AstObject* object;
+
+		template <typename T>
+		T Cast()
+		{
+			if constexpr(is_same_v<T, string_view>)
+			{
+				return tok_data;
+			}
+			else if constexpr(is_same_v<T, bool>)
+			{
+				return bool_val;
+			}
+			else if constexpr(is_enum_v<T>)
+			{
+				return static_cast<T>(enum_val);
+			}
+			else if constexpr(is_pointer_v<T> && is_base_of_v<AstObject, remove_pointer_t<T>>)
+			{
+				return reinterpret_cast<T>(object);
+			}
+		}
 	};
 
-	struct ParsingContext
+	class ParsingContext
 	{
-		deque<AstObject::Ptr> arena;
+		void PushToken(string_view tok)
+		{
 
-		vector<AstStackSlot> ast_stack;
+		}
+
+		void Merge(int count, AstStackSlot(*proxy)(ParsingContext&, AstStackSlot*))
+		{
+
+		}
+
+		template <typename T>
+		T* ConstructAst()
+		{
+			static_assert(is_base_of_v<AstObject, T>);
+
+			// ...
+		}
+	private:
+		deque<AstObject::Ptr> arena_;
+		vector<AstStackSlot> ast_stack_;
 	};
 
 	struct StateSlot
@@ -56,6 +98,16 @@ namespace lolita
 		Symbol symbol;
 		int state;
 	};
+
+	AstStackSlot Merge(ParsingContext& ctx, AstStackSlot* k)
+	{
+		auto p1 = (k++)->Cast<string_view>();
+		auto p2 = (k++)->Cast<bool>();
+		auto p3 = (k++)->Cast<BinaryOp>();
+		// ...
+
+		return ...;
+	}
 
 	namespace details
 	{
@@ -72,9 +124,9 @@ namespace lolita
 
 		static const vector<int> kDfaTable = {};
 		static const vector<int> kAccCategories = {};
-		static const vector<bool> kCategoryBlacklist = {};
+		static const vector<bool> kTokenBlacklist = {};
 
-		// Syntatic Analysis Stuffs
+		// Syntactic Analysis Stuffs
 		//
 		static const int kParserInitialState = 0;
 		static const int kActionTableWidth = 0;
@@ -199,7 +251,7 @@ namespace lolita
 			// throw for invalid token
 			if (tok.category == -1) throw 0;
 			// ignore categories in blacklist
-			if (kCategoryBlacklist[tok.category]) continue;
+			if (kTokenBlacklist[tok.category]) continue;
 
 			FeedParser(states, ctx, tok.category);
 			ctx.ast_stack.push_back(AstStackSlot{ data.substr(tok.offset, tok.length) });

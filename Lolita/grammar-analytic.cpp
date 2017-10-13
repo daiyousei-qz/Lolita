@@ -1,137 +1,154 @@
 #include "grammar-analytic.h"
 
-namespace lolita
+using namespace std;
+
+namespace eds::loli
 {
-	void TryInsertFIRST(const std::vector<TermSet>& lookup, TermSet& output, Symbol s)
+	// try to insert FIRST SET of s into output
+	static bool TryInsertFIRST(const PredictiveSet& lookup, TermSet& output, Symbol* s)
 	{
-		if (s.IsTerminal())
+		// remember output's size
+		const auto old_output_sz = output.size();
+
+		// try insert terminals that start s into output
+		if (s->IsTerminal())
 		{
-			output.insert(s.AsTerminal());
+			output.insert(s->AsTerminal());
 		}
 		else // non-term
 		{
-			const auto& source_set = lookup[s.Id()];
+			const auto& source_set = lookup.at(s->AsNonTerminal()).first_set;
 			output.insert(source_set.begin(), source_set.end());
 		}
+
+		// return if output is changed
+		return output.size() != old_output_sz;
 	}
 
-	void TryInsertFOLLOW(const std::vector<TermSet>& lookup, TermSet& output, NonTerminal nonterm)
+	// try to insert FOLLOW SET of s into output
+	static bool TryInsertFOLLOW(const PredictiveSet& lookup, TermSet& output, NonTerminal* s)
 	{
-		const auto& source_set = lookup[nonterm.Id()];
+		// remember output's size
+		const auto old_output_sz = output.size();
+
+		// try insert terminals that may follow s into output
+		const auto& source_set = lookup.at(s->AsNonTerminal()).follow_set;
 		output.insert(source_set.begin(), source_set.end());
+
+		// return if output is changed
+		return output.size() != old_output_sz;
 	}
 
-	void LoopWhileGrowing(std::vector<TermSet>& monitor, std::function<void()> func)
+	static void ComputeFIRST(PredictiveSet& set, const Grammar& g)
 	{
-		auto last_total_term = 0u;
-		while (true)
+		// iteratively compute first set until it's not growing
+		for (auto growing = true; growing;)
 		{
-			// callback
-			func();
+			growing = false;
 
-			// if total number of terms in FIRST sets does't grow, stop iteration
-			auto total_term = std::accumulate(monitor.begin(), monitor.end(), 0u,
-				[](auto acc, const auto& s) {return acc + s.size(); });
-			if (total_term > last_total_term)
-			{
-				last_total_term = total_term;
-			}
-			else
-			{
-				break;
-			}
-		}
-
-		// TODO: take epsilon_deriv and ending_symbol into account when to halt the loop(IMPORTANT)
-		// TODO: remove this workaround!!!
-		func();
-	}
-
-	PredictiveSet PredictiveSet::Create(const Grammar& g)
-	{
-		const auto nonterm_count = g.NonTerminalCount();
-
-		// compute FIRST sets and recognize epsilon-derivations
-		//
-		std::vector<bool> produce_epsilon(nonterm_count, false);
-		std::vector<TermSet> first(nonterm_count);
-
-		LoopWhileGrowing(first, [&]() {
 			for (const auto& production : g.Productions())
 			{
-				const auto lhs_id = production.Left().Id();
-				TermSet& target_set = first[lhs_id];
+				auto& target_info = set.at(production->Left());
 
-				bool early_break = false;
-				for (auto rhs_elem : production.Right())
+				bool may_produce_epsilon = true;
+				for (const auto rhs_elem : production->Right())
 				{
-					TryInsertFIRST(first, target_set, rhs_elem);
+					growing |= TryInsertFIRST(set, target_info.first_set, rhs_elem);
 
 					// break on first non-epsilon-derivable symbol
-					if (!(rhs_elem.IsNonTerminal() && produce_epsilon[rhs_elem.Id()]))
+					if (rhs_elem->IsTerminal() 
+						|| !set.at(rhs_elem->AsNonTerminal()).may_produce_epsilon)
 					{
-						early_break = true;
+						may_produce_epsilon = false;
 						break;
 					}
 				}
 
-				if (!early_break)
+				if (may_produce_epsilon && !target_info.may_produce_epsilon)
 				{
 					// as the iteration didn't break early
-					// it may only produce epsilon symbols
+					// it may produce epsilon symbol
 					// NOTE empty production also indicates epsilon
-					produce_epsilon[lhs_id] = true;
+					growing = true;
+					target_info.may_produce_epsilon = true;
 				}
 			}
-		});
+		}
+	}
 
-		// compute FOLLOW sets
-		//
-		std::vector<bool> ending_symbol(nonterm_count, false); // TODO: add eof detection
-		ending_symbol.back() = true; // last non-term, i.e. _ROOT always accepts eof
+	static void ComputeFOLLOW(PredictiveSet& set, const Grammar& g)
+	{
+		// root symbol is always able to preceed eof
+		set.at(g.RootSymbol()).may_preceed_eof = true;
 
-		std::vector<TermSet> follow(nonterm_count);
+		// iteratively compute follow set until it's not growing
+		for (auto growing = true; growing;)
+		{
+			growing = false;
 
-		LoopWhileGrowing(follow, [&]() {
 			for (const auto& production : g.Productions())
 			{
-				const auto& lhs = production.Left();
-				const auto& rhs = production.Right();
+				// shortcuts alias
+				const auto& lhs = production->Left();
+				const auto& rhs = production->Right();
 
-				// empty production provides no information but leads to an error
-				if (rhs.empty()) continue;
-
+				// epsilon_path is set false when any non-nullable symbol is encountered
 				bool epsilon_path = true;
 				for (auto iter = rhs.rbegin(); iter != rhs.rend(); ++iter)
 				{
-					auto lookahead_iter = std::next(iter);
-					if (lookahead_iter != rhs.rend() && lookahead_iter->IsNonTerminal())
+					// process lookahead symbol
+					if (const auto la_iter = std::next(iter); la_iter != rhs.rend())
 					{
-						TryInsertFIRST(first, follow[lookahead_iter->Id()], *iter);
+						const auto la_symbol = *la_iter;
+						if (la_symbol->IsNonTerminal())
+						{
+							auto& la_follow = set.at(la_symbol->AsNonTerminal()).follow_set;
+							growing |= TryInsertFIRST(set, la_follow, *iter);
+						}
 					}
 
+					// process current symbol
 					if (epsilon_path)
 					{
-						if (iter->IsNonTerminal())
+						const auto cur_symbol = *iter;
+
+						if (cur_symbol->IsTerminal())
 						{
-							epsilon_path = produce_epsilon[iter->Id()];
-
-							if (ending_symbol[lhs.Id()])
-							{
-								ending_symbol[iter->Id()] = true;
-							}
-
-							TryInsertFOLLOW(follow, follow[iter->Id()], production.Left());
+							epsilon_path = false;
 						}
 						else
 						{
-							epsilon_path = false;
+							auto& cur_symbol_info = set.at(cur_symbol->AsNonTerminal());
+
+							if (!cur_symbol_info.may_produce_epsilon)
+							{
+								epsilon_path = false;
+							}
+
+							// propagate may_preceed_eof on epsilon path
+							if (!cur_symbol_info.may_preceed_eof
+								&& set.at(lhs).may_preceed_eof)
+							{
+								growing = true;
+								cur_symbol_info.may_preceed_eof = true;
+							}
+
+							// propagate follow_set on epsilon path
+							growing |= TryInsertFOLLOW(set, cur_symbol_info.follow_set, lhs);
 						}
 					}
 				}
 			}
-		});
+		}
+	}
 
-		return PredictiveSet{ first,follow, produce_epsilon, ending_symbol };
+	PredictiveSet ComputePredictiveSet(const Grammar& g)
+	{
+		PredictiveSet result;
+
+		ComputeFIRST(result, g);
+		ComputeFOLLOW(result, g);
+
+		return result;
 	}
 }

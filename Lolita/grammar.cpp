@@ -1,34 +1,49 @@
 #include "grammar.h"
 
-namespace lolita
+using namespace std;
+
+namespace eds::loli
 {
+	// ==============================================================
 	// Implementation Of Grammar
+
+	// Construction
 	//
 
-
-	// Implementation Of GrammarBuilder
-	//
-
-	Grammar::SharedPtr GrammarBuilder::Build(NonTerminal root)
+	void Grammar::ConfigureRootSymbol(NonTerminal* s)
 	{
-		// create a dummy non-terminal as a topmost one
-		//
-		auto root_dummy = NewNonTerm("_ROOT");
-		NewProduction(root_dummy, { root });
+		root_symbol_ = s;
+	}
 
-		const size_t nonterm_count = nonterms_.size();
+	Terminal* Grammar::NewTerm(const string& name, const string& regex, bool ignored)
+	{
+		terms_.push_back(
+			make_unique<Terminal>(terms_.size(), name, regex, ignored)
+		);
 
-		// generate Grammar instance and clear builder
-		//
-		auto result = std::make_shared<Grammar>();
+		return terms_.back().get();
+	}
 
-		result->terms_ = std::move(terms_);
-		result->nonterms_ = std::move(nonterms_);
-		result->productions_ = std::move(productions_);
+	NonTerminal* Grammar::NewNonTerm(const string& name)
+	{
+		nonterms_.push_back(
+			make_unique<NonTerminal>(nonterms_.size(), name)
+		);
 
-		terms_ = {};
-		nonterms_ = {};
-		productions_ = {};
+		return nonterms_.back().get();
+	}
+
+	Production* Grammar::NewProduction(NonTerminal* lhs, const vector<Symbol*>& rhs)
+	{
+		assert(!rhs.empty());
+
+		productions_.push_back(
+			make_unique<Production>(productions_.size(), lhs, rhs)
+		);
+
+		// update records in nonterm definition
+		auto result = productions_.back().get();
+		lhs->productions.push_back(result);
 
 		return result;
 	}

@@ -1,9 +1,18 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26730.15
+VisualStudioVersion = 15.0.27004.2002
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Lolita", "Lolita\Lolita.vcxproj", "{D97B09EE-CD21-4ECB-AC07-1B010CF59867}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D99CA730-D4E1-4820-984C-958D61640C14}"
+	ProjectSection(SolutionItems) = preProject
+		gen.cpp = gen.cpp
+		GeneratedParser.cpp = GeneratedParser.cpp
+		GeneratedParser.h = GeneratedParser.h
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "edslib", "..\edslib\edslib\edslib.vcxproj", "{87E3CADE-8749-4988-B3E6-0C9F07E58828}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +30,14 @@ Global
 		{D97B09EE-CD21-4ECB-AC07-1B010CF59867}.Release|x64.Build.0 = Release|x64
 		{D97B09EE-CD21-4ECB-AC07-1B010CF59867}.Release|x86.ActiveCfg = Release|Win32
 		{D97B09EE-CD21-4ECB-AC07-1B010CF59867}.Release|x86.Build.0 = Release|Win32
+		{87E3CADE-8749-4988-B3E6-0C9F07E58828}.Debug|x64.ActiveCfg = Debug|x64
+		{87E3CADE-8749-4988-B3E6-0C9F07E58828}.Debug|x64.Build.0 = Debug|x64
+		{87E3CADE-8749-4988-B3E6-0C9F07E58828}.Debug|x86.ActiveCfg = Debug|Win32
+		{87E3CADE-8749-4988-B3E6-0C9F07E58828}.Debug|x86.Build.0 = Debug|Win32
+		{87E3CADE-8749-4988-B3E6-0C9F07E58828}.Release|x64.ActiveCfg = Release|x64
+		{87E3CADE-8749-4988-B3E6-0C9F07E58828}.Release|x64.Build.0 = Release|x64
+		{87E3CADE-8749-4988-B3E6-0C9F07E58828}.Release|x86.ActiveCfg = Release|Win32
+		{87E3CADE-8749-4988-B3E6-0C9F07E58828}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

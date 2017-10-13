@@ -1,18 +1,35 @@
 #include "regex.h"
 #include "arena.hpp"
+#include "text\text-utils.hpp"
+#include <optional>
 
 using namespace std;
+using namespace eds;
+using namespace eds::text;
 
-namespace lolita
+namespace eds::loli
 {
 	// Parsing
 	//
 
+	void RegexParsingAssert(bool condition, zstring msg)
+	{
+		if (!condition)
+		{
+			throw msg;
+		}
+	}
+
+	static constexpr auto kMsgUnexpectedEof = "unexpected eof";
+	static constexpr auto kMsgEmptyExpressionBody = "empty expression body is not allowed";
+	static constexpr auto kMsgInvalidClosure = "invalid closure is not allowed";
+
+	// merge expressions in seq into any in cascade(ConcatenationExpr)
 	void MergeSequence(Arena& arena, RegexExprVec& any, RegexExprVec& seq)
 	{
 		assert(!seq.empty());
 
-		auto expr = arena.Construct<ConcatenationExpr>(seq);
+		auto expr = arena.Construct<SequenceExpr>(seq);
 		seq.clear();
 		any.push_back(expr);
 	}
@@ -42,96 +59,97 @@ namespace lolita
 		}
 	}
 
+	// parse a character from str, content of which would be consumed
 	int ParseCharacter(zstring& str)
 	{
-		if (*str != '\\')
+		int result;
+		auto p = str;
+		if (ConsumeIf(p, '\\'))
 		{
-			return *str;
+			RegexParsingAssert(*p != '\0', kMsgUnexpectedEof);
+
+			result = EscapeRawCharacter(Consume(str));
 		}
 		else
 		{
-			++str;
-			if (*str == '\0') throw 0; // unexpected eof
-
-			return EscapeRawCharacter(*str);
+			result = *p;
 		}
+
+		str = p;
+		return result;
 	}
 
 	RegexExprPtr ParseEscapedExpr(Arena& arena, zstring& str)
 	{
-		auto rg = CharRange{ EscapeRawCharacter(*str) };
+		auto rg = CharRange{ EscapeRawCharacter(Consume(str)) };
 		return arena.Construct<EntityExpr>(rg);
 	}
 
-	// TODO: support simple escaping in char class
 	RegexExprPtr ParseCharClass(Arena& arena, zstring& str)
 	{
-		auto p = str;
+		// ASSUME leading '[' pre-consumed
 
+		auto p = str;
 		// check leading '^'
-		bool reverse = false;
-		if (*p == '^')
-		{
-			reverse = true;
-			++p;
-		}
+		bool reverse = ConsumeIf(p, '^');
 
 		// load char class
-		int last_ch;
+		optional<int> last_ch;
 		vector<CharRange> ranges;
 
-		bool joinable = false;
-		for (; *p && *p != ']'; ++p)
+		while (*p && *p != ']')
 		{
-			if (joinable) // i.e. a value pending in last_ch
+			if (last_ch) // if a value pending in last_ch
 			{
-				if (*p == '-')
+				if (ConsumeIf(p, '-')) // if a mark for range
 				{
-					++p; // discard '-'
-					if (*p == '\0') throw 0; // unexpected eof
+					RegexParsingAssert(*p != '\0', kMsgUnexpectedEof);
 
-					joinable = false; // disable joining
+					// copy last_ch and disable it
+					auto ch = *last_ch;
+					last_ch = nullopt;
 
-					// if '-' is not last character
-					if (*p != ']')
+					// if '-' is the last character in char class
+					// it's treated as a raw character
+					if (*p == ']')
 					{
-						int min = last_ch;
+						ranges.push_back(CharRange{ '-' });
+						break; // early break for closing bracket
+					}
+					else
+					{
+						int min = ch;
 						int max = ParseCharacter(p);
 						if (max < min) std::swap(min, max);
 
 						ranges.push_back(CharRange{ min, max });
 					}
-					else // tailing '-' is a raw character
-					{
-						ranges.push_back(CharRange{ '-' });
-						break; // early break for closing bracket
-					}
+
 				}
-				else
+				else // replace the last_ch
 				{
-					ranges.push_back(CharRange{ last_ch });
+					ranges.push_back(CharRange{ *last_ch });
 
 					last_ch = ParseCharacter(p);
 				}
 			}
 			else
 			{
-				joinable = true;
-
 				last_ch = ParseCharacter(p); // don't save it into ranges yet
 			}
 		}
 
-		if (joinable) ranges.push_back(CharRange{ last_ch });
+		if (last_ch) ranges.push_back(CharRange{ *last_ch });
 
-		if (!*p) throw 0; // unexpected eof
-		if (ranges.empty()) throw 0; // empty range
 
-		str = p; // update cursor, but don't discard ']'
+		RegexParsingAssert(ConsumeIf(p, ']'), kMsgUnexpectedEof);
+		RegexParsingAssert(!ranges.empty(), kMsgEmptyExpressionBody);
+
+		str = p;
 
 		// merge ranges 
 		sort(ranges.begin(), ranges.end(), [](auto lhs, auto rhs) { return lhs.Min() < rhs.Min(); });
-		
+
 		vector<CharRange> merged_ranges{ ranges.front() };
 		for (auto rg : ranges)
 		{
@@ -149,7 +167,7 @@ namespace lolita
 			}
 		}
 
-		// reverse if specified
+		// reverse if required
 		if (reverse)
 		{
 			vector<CharRange> tmp;
@@ -190,7 +208,7 @@ namespace lolita
 
 		return result.size() == 1
 			? result.front()
-			: arena.Construct<AlternationExpr>(result);
+			: arena.Construct<ChoiceExpr>(result);
 	}
 
 	RegexExprPtr ParseRegexInternal(Arena& arena, zstring& str, char term)
@@ -200,40 +218,41 @@ namespace lolita
 
 		bool allow_closure = false;
 		auto p = str;
-		for (; *p && *p != term; ++p)
+		for (; *p && *p != term;)
 		{
-			if (*p == '|')
+			if (ConsumeIf(p, '|'))
 			{
-				if (seq.empty()) throw 0;
+				RegexParsingAssert(!seq.empty(), kMsgEmptyExpressionBody);
 
 				allow_closure = false;
 
 				MergeSequence(arena, any, seq);
 			}
-			else if(*p == '(')
+			else if (ConsumeIf(p, '('))
 			{
 				allow_closure = true;
 
-				auto expr = ParseRegexInternal(arena, ++p, ')');
+				auto expr = ParseRegexInternal(arena, p, ')');
 				seq.push_back(expr);
 			}
 			else if (*p == '*' || *p == '+' || *p == '?')
 			{
-				if (seq.empty() || !allow_closure) throw 0;
+				RegexParsingAssert(!seq.empty(), kMsgEmptyExpressionBody);
+				RegexParsingAssert(allow_closure, kMsgInvalidClosure);
 
 				allow_closure = false;
 
-				ClosureStrategy strategy;
-				switch (*p)
+				RepetitionMode strategy;
+				switch (Consume(p))
 				{
 				case '?':
-					strategy = ClosureStrategy::Optional;
+					strategy = RepetitionMode::Optional;
 					break;
 				case '*':
-					strategy = ClosureStrategy::Star;
+					strategy = RepetitionMode::Star;
 					break;
 				case '+':
-					strategy = ClosureStrategy::Plus;
+					strategy = RepetitionMode::Plus;
 					break;
 				}
 
@@ -243,41 +262,43 @@ namespace lolita
 				auto expr = arena.Construct<ClosureExpr>(to_repeat, strategy);
 				seq.push_back(expr);
 			}
-			else if (*p == '[')
+			else if (ConsumeIf(p, '['))
 			{
 				allow_closure = true;
 
-				auto expr = ParseCharClass(arena, ++p);
+				auto expr = ParseCharClass(arena, p);
 				seq.push_back(expr);
 			}
-			else if (*p == '\\')
+			else if (ConsumeIf(p, '\\'))
 			{
 				allow_closure = true;
 
-				auto expr = ParseEscapedExpr(arena, ++p);
+				auto expr = ParseEscapedExpr(arena, p);
 				seq.push_back(expr);
 			}
 			else
 			{
 				allow_closure = true;
 
-				auto expr = arena.Construct<EntityExpr>(CharRange{ *p });
+				auto expr = arena.Construct<EntityExpr>(CharRange{ Consume(p) });
 				seq.push_back(expr);
 			}
 		}
 
-		if (seq.empty()) throw 0;
+		RegexParsingAssert(!seq.empty(), kMsgEmptyExpressionBody);
+		RegexParsingAssert(!(term && !ConsumeIf(p, term)), kMsgUnexpectedEof);
 
 		str = p;
 		MergeSequence(arena, any, seq);
 
 		return any.size() == 1
 			? any.front()
-			: arena.Construct<AlternationExpr>(any);
+			: arena.Construct<ChoiceExpr>(any);
 	}
 
-	RegexExprPtr ParseRegex(Arena& arena, zstring str)
+	RootExpr* ParseRegex(Arena& arena, const string& regex)
 	{
+		auto str = regex.c_str();
 		auto expr = ParseRegexInternal(arena, str, '\0');
 
 		return arena.Construct<RootExpr>(expr);

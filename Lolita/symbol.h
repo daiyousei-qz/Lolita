@@ -1,194 +1,168 @@
+// Data classes in this header should not be marked as const by convention
+// DON'T modify members manually
+
 #pragma once
-#include "lolita-basic.h"
-#include "flat-set.hpp"
+#include "ext/flat-set.hpp"
 #include <string>
 #include <numeric>
 #include <cassert>
 #include <variant>
 #include <vector>
 
-namespace lolita
+namespace eds::loli
 {
-	using SymbolId = unsigned;
+	// ============================================================
+	// Pre-declaration
+	//
 
 	class Symbol;
 	class Terminal;
 	class NonTerminal;
 
-	using TermSet = FlatSet<Terminal>;
+	class Production;
 
-	namespace detail
-	{
-		class SymbolBase
-		{
-		public:
-			SymbolBase(SymbolId id)
-				: id_(id) { }
-
-			SymbolId Id() const { return id_; }
-
-		private:
-			SymbolId id_;
-		};
-	}
-
-	class Terminal : public detail::SymbolBase
-	{
-	private:
-		friend class Grammar;
-		friend class GrammarBuilder;
-		explicit Terminal(SymbolId id) : SymbolBase(id) { }
-	};
-
-	class NonTerminal : public detail::SymbolBase
-	{
-	private:
-		friend class Grammar;
-		friend class GrammarBuilder;
-		explicit NonTerminal(SymbolId id) : SymbolBase(id) { }
-	};
+	// ============================================================
+	// Definition
+	//
 
 	class Symbol
 	{
 	public:
-		Symbol(Terminal term) : data_(term) { }
-		Symbol(NonTerminal nonterm) : data_(nonterm) { }
 
-		SymbolId Id() const
+		// ctors
+		//
+
+		Symbol(int id, const std::string& name)
+			: id(id), name(name)
 		{
-			return std::visit([](auto s) { return s.Id(); }, data_);
+			assert(id >= 0);
+			assert(!name.empty());
 		}
 
-		auto Data() const
+		virtual ~Symbol() = default;
+
+		// Member accessor
+		//
+
+		int Id() const
 		{
-			return data_;
+			return id;
+		}
+		const auto& Name() const
+		{
+			return name;
 		}
 
-		auto AsTerminal() const { return std::get<Terminal>(data_); }
-		auto AsNonTerminal() const { return std::get<NonTerminal>(data_); }
+		// Type checkers
+		//
 
-		bool IsTerminal() const { return std::holds_alternative<Terminal>(data_); }
-		bool IsNonTerminal() const { return std::holds_alternative<NonTerminal>(data_); }
+		virtual bool IsTerminal() const = 0;
+
+		bool IsNonTerminal() const
+		{
+			return !IsTerminal();
+		}
+
+		// Cast shortcuts
+		//
+
+		Terminal* Symbol::AsTerminal()
+		{
+			assert(IsTerminal());
+			return reinterpret_cast<Terminal*>(this);
+		}
+		NonTerminal* Symbol::AsNonTerminal()
+		{
+			assert(IsNonTerminal());
+			return reinterpret_cast<NonTerminal*>(this);
+		}
 
 	private:
-		std::variant<Terminal, NonTerminal> data_;
+		int id;
+		std::string name;
+	};
+
+	class Terminal final : public Symbol
+	{
+	public:
+		explicit Terminal(int id, const std::string& name, const std::string& regex, bool ignored)
+			: Symbol(id, name)
+			, regex(regex)
+			, ignored(ignored)
+			, priority(ignored ? -1 : id) { }
+
+		bool IsTerminal() const override
+		{
+			return true;
+		}
+
+		// Accessor
+		//
+
+		const auto& Regex() const
+		{
+			return regex;
+		}
+		bool Ignored() const
+		{
+			return ignored;
+		}
+		int Priority() const
+		{
+			return priority;
+		}
+
+	private:
+		friend class Grammar;
+
+		std::string regex;
+		bool ignored;
+		int priority;
+	};
+
+	class NonTerminal final : public Symbol
+	{
+	public:
+		explicit NonTerminal(int id, const std::string& name)
+			: Symbol(id, name) { }
+
+		bool IsTerminal() const override
+		{
+			return false;
+		}
+
+		// Accessor
+		//
+
+		const auto& Productions() const
+		{
+			return productions;
+		}
+
+	private:
+		friend class Grammar;
+
+		std::vector<Production*> productions;
 	};
 
 	class Production
 	{
 	public:
-		Production(NonTerminal lhs, std::vector<Symbol> rhs)
-			: lhs_(lhs), rhs_(rhs) { }
+		explicit Production(int id, NonTerminal* lhs, const std::vector<Symbol*>& rhs)
+			: id(id), lhs(lhs), rhs(rhs) { }
 
-		auto Left() const { return lhs_; }
-		const auto& Right() const { return rhs_; }
+		auto Left() const
+		{
+			return lhs;
+		}
+		const auto& Right() const
+		{
+			return rhs;
+		}
 
 	private:
-		NonTerminal lhs_;
-		std::vector<Symbol> rhs_;
+		int						id;
+		NonTerminal*			lhs;
+		std::vector<Symbol*>	rhs;
 	};
-
-	struct Item
-	{
-		const Production* production;
-		unsigned pos;
-	};
-
-	// Operator Overloads for Item
-	//
-
-	inline bool operator==(Item lhs, Item rhs)
-	{
-		return lhs.production == rhs.production && lhs.pos == rhs.pos;
-	}
-	inline bool operator!=(Item lhs, Item rhs)
-	{
-		return !(lhs == rhs);
-	}
-	inline bool operator>(Item lhs, Item rhs)
-	{
-		if (lhs.production > rhs.production) return true;
-		if (lhs.production < rhs.production) return false;
-
-		return lhs.pos > rhs.pos;
-	}
-	inline bool operator>=(Item lhs, Item rhs)
-	{
-		return lhs == rhs || lhs > rhs;
-	}
-	inline bool operator<(Item lhs, Item rhs)
-	{
-		return !(lhs >= rhs);
-	}
-	inline bool operator<=(Item lhs, Item rhs)
-	{
-		return !(lhs > rhs);
-	}
-
-	// Operator Overloads Of Terminal
-	//
-
-	inline bool operator==(Terminal lhs, Terminal rhs)
-	{
-		return lhs.Id() == rhs.Id();
-	}
-	inline bool operator!=(Terminal lhs, Terminal rhs)
-	{
-		return !(lhs == rhs);
-	}
-	inline bool operator>(Terminal lhs, Terminal rhs)
-	{
-		return lhs.Id() > rhs.Id();
-	}
-	inline bool operator>=(Terminal lhs, Terminal rhs)
-	{
-		return lhs.Id() >= rhs.Id();
-	}
-	inline bool operator<(Terminal lhs, Terminal rhs)
-	{
-		return !(lhs >= rhs);
-	}
-	inline bool operator<=(Terminal lhs, Terminal rhs)
-	{
-		return !(lhs > rhs);
-	}
-
-	// Operator Overloads Of NonTerminal
-	//
-
-	inline bool operator==(NonTerminal lhs, NonTerminal rhs)
-	{
-		return lhs.Id() == rhs.Id();
-	}
-	inline bool operator!=(NonTerminal lhs, NonTerminal rhs)
-	{
-		return !(lhs == rhs);
-	}
-	inline bool operator>(NonTerminal lhs, NonTerminal rhs)
-	{
-		return lhs.Id() > rhs.Id();
-	}
-	inline bool operator>=(NonTerminal lhs, NonTerminal rhs)
-	{
-		return lhs.Id() >= rhs.Id();
-	}
-	inline bool operator<(NonTerminal lhs, NonTerminal rhs)
-	{
-		return !(lhs >= rhs);
-	}
-	inline bool operator<=(NonTerminal lhs, NonTerminal rhs)
-	{
-		return !(lhs > rhs);
-	}
-
-	// Operator Overloads Of Symbol
-	//
-	inline bool operator==(Symbol lhs, Symbol rhs)
-	{
-		return lhs.Data() == rhs.Data();
-	}
-	inline bool operator!=(Symbol lhs, Symbol rhs)
-	{
-		return !(lhs == rhs);
-	}
 }
