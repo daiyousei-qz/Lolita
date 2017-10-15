@@ -94,5 +94,8 @@
     <ClCompile Include="config.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="parsing-bootstrap.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

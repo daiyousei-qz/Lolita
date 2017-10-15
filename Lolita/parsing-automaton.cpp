@@ -249,11 +249,6 @@ namespace eds::loli
 
 				if (item.IsFinalized())
 				{
-					if (lhs == g.RootSymbol())
-					{
-						atm->MakeAccept(state);
-					}
-
 					// for all term in FOLLOW do reduce
 					for (auto term : lhs_info.follow_set)
 					{

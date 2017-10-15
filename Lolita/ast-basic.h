@@ -3,8 +3,20 @@
 
 namespace eds::loli
 {
-	class AstObject { };
-	class AstVector { };
+	class AstObject 
+	{
+	public:
+		AstObject() = default;
+		virtual ~AstObject() = default;
+	};
+
+	class AstVectorBase { };
+
+	template <typename T>
+	class AstVector : public AstVectorBase
+	{
+
+	};
 
 	union AstItem
 	{
@@ -12,13 +24,13 @@ namespace eds::loli
 		int enum_value;
 		std::string_view token;
 		AstObject* object;
-		AstVector* vector;
+		AstVectorBase* vector;
 
 		AstItem();
 		AstItem(int);
 		AstItem(std::string_view);
 		AstItem(AstObject*);
-		AstItem(AstVector*);
+		AstItem(AstVectorBase*);
 	};
 
 	class AstItemView

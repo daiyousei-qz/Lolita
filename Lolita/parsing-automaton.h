@@ -50,7 +50,6 @@ namespace eds::loli
 		ParsingState* InitialState() const;
 
 		ParsingState* NewState();
-		void MakeAccept(ParsingState* state);
 
 		void RegisterShift(ParsingState* src, ParsingState* dest, Symbol* s);
 		void RegisterReduce(ParsingState* src, Production* p, Terminal* s);

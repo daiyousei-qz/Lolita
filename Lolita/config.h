@@ -2,33 +2,16 @@
 #include "grammar.h"
 #include <string>
 #include <vector>
-#include <variant>
 #include <unordered_map>
+#include <variant>
+#include <optional>
 
 namespace eds::loli
 {
-	struct AstConstructionHint
-	{
-		std::string command;
-		std::vector<int> params;
-
-		// Possible commands:
-		// - NodeName
-		// - &
-		// - @n
-		//
-		// NOTE only first two commands accept parameters
-		// if command is empty, it goes default
-	};
-
-	using AstConstructionLookup =
-		std::unordered_map<Production*, AstConstructionHint>;
-
-
 	// Type
 	//
 
-	struct TypeSpec
+	struct QualType
 	{
 		std::string name;
 		std::string qual;
@@ -39,8 +22,6 @@ namespace eds::loli
 
 	struct TokenDefinition
 	{
-		bool ignore;
-
 		std::string name;
 		std::string regex;
 	};
@@ -64,7 +45,7 @@ namespace eds::loli
 
 	struct NodeMember
 	{
-		TypeSpec type;
+		QualType type;
 		std::string name;
 	};
 
@@ -79,19 +60,23 @@ namespace eds::loli
 	// Rule
 	//
 
-	struct RuleItem
+	struct RuleSymbol
 	{
 		std::string symbol;
 		std::string assign;
 	};
+	struct RuleItem
+	{
+		std::vector<RuleSymbol> rhs;
+		std::optional<QualType> klass_hint;
+	};
 
 	struct RuleDefinition
 	{
-		TypeSpec type;
+		QualType type;
 
 		std::string lhs;
-		std::string klass_hint;
-		std::vector<RuleItem> rhs;
+		std::vector<std::unique_ptr<RuleItem>> items;
 	};
 
 	// Config
@@ -100,12 +85,13 @@ namespace eds::loli
 	struct Config
 	{
 		std::vector<TokenDefinition> tokens;
+		std::vector<TokenDefinition> ignored_tokens;
 		std::vector<EnumDefinition> enums;
 		std::vector<BaseDefinition> bases;
 		std::vector<NodeDefinition> nodes;
 		std::vector<RuleDefinition> rules;
 	};
 
-	std::unique_ptr<Config> LoadConfig();
-	void ValidateConfig(const Config& config);
+	std::unique_ptr<Config> ParseConfig(const char* data);
+	// TODO: void ValidateConfig(const Config& config);
 }

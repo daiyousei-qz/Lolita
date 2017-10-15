@@ -5,7 +5,7 @@
 #include <string_view>
 #include <variant>
 
-// given Arena&, AstTraitInterface&, AstItemView
+// given Arena&, AstTraitInterface&,s AstItemView
 // CHOICE ->
 // - return one item
 // * return null_opt
@@ -16,63 +16,166 @@
 
 namespace eds::loli
 {
-	class AstSelector
+	namespace detail
+	{
+		template <bool Value>
+		class AllowDummyTrait
+		{
+		public:
+			bool AllowDummyTrait() const
+			{
+				return Value;
+			}
+		};
+	}
+
+	// Gen
+	//
+
+	class AstEnumGen : public detail::AllowDummyTrait<true>
 	{
 	public:
-		AstItem Invoke(Arena& arena, AstTraitInterface& trait, AstItemView rhs)
+		AstEnumGen(int value)
+			: value_(value) { }
+
+		AstItem Invoke(AstTraitInterface& trait, Arena& arena, AstItemView rhs) const
 		{
-			return rhs.At(choice_);
+			return value_;
 		}
 
 	private:
-		int choice_;
+		int value_;
 	};
-	class AstEmptyVecGen
+	class AstObjectGen : public detail::AllowDummyTrait<false>
 	{
 	public:
-		AstItem Invoke(Arena& arena, AstTraitInterface& trait, AstItemView rhs)
+		AstItem Invoke(AstTraitInterface& trait, Arena& arena, AstItemView rhs) const
+		{
+			return trait.ConstructObject(arena);
+		}
+	};	
+	class AstVectorGen : public detail::AllowDummyTrait<false>
+	{
+	public:
+		AstItem Invoke(AstTraitInterface& trait, Arena& arena, AstItemView rhs) const
 		{
 			return trait.ConstructVector(arena);
 		}
 	};
-	class AstVecMerger
+	class AstItemSelector : public detail::AllowDummyTrait<true>
 	{
 	public:
-		AstItem Invoke(Arena& arena, AstTraitInterface& trait, AstItemView rhs)
-		{
-			auto vec = rhs.At(vec_index).vector;
-			trait.InsertElement(vec, rhs.At(item_index));
+		AstItemSelector(int index)
+			: index_(index) { }
 
-			return vec;
+		AstItem Invoke(AstTraitInterface& trait, Arena& arena, AstItemView rhs) const
+		{
+			return rhs.At(index_).object;
 		}
 
 	private:
-		int vec_index;
-		int item_index;
+		int index_;
 	};
-	class AstObjectGen
-	{
 
+	// Manip
+	//
+
+	class AstManipPlaceholder : public detail::AllowDummyTrait<true>
+	{
+	public:
+		void Invoke(AstTraitInterface& trait, AstItem item, AstItemView rhs) const { }
 	};
+	class AstObjectSetter : public detail::AllowDummyTrait<false>
+	{
+	public:
+		struct SetterPair
+		{
+			int cordinal;
+			int index;
+		};
+
+		AstObjectSetter(const std::vector<SetterPair>& setters)
+			: setters_(setters) { }
+
+		void Invoke(AstTraitInterface& trait, AstItem item, AstItemView rhs) const
+		{
+			for (auto pair : setters_)
+			{
+				trait.AssignField(item.object, pair.cordinal, rhs.At(pair.index));
+			}
+		}
+
+	private:
+		std::vector<SetterPair> setters_;
+	};
+	class AstVectorMerger : public detail::AllowDummyTrait<false>
+	{
+	public:
+		AstVectorMerger(const std::vector<int>& indices)
+			: indices_(indices) { }
+
+		void Invoke(AstTraitInterface& trait, AstItem item, AstItemView rhs) const
+		{
+			for (auto index : indices_)
+			{
+				trait.InsertElement(item.vector, rhs.At(index));
+			}
+		}
+
+	private:
+		std::vector<int> indices_;
+	};
+
+	// Handle
+	//
 
 	class AstHandle
 	{
-		AstItem Invoke(Arena& arena, AstTraitInterface& trait, AstItemView rhs)
-		{
-			auto visitor = [&](auto& handle) { return handle.Invoke(arena, trait, rhs); };
+	public:
+		using GenHandle = std::variant<
+			AstEnumGen,
+			AstObjectGen,
+			AstVectorGen,
+			AstItemSelector
+		>;
 
-			return std::visit(visitor, data_);
+		using ManipHandle = std::variant<
+			AstManipPlaceholder,
+			AstObjectSetter,
+			AstVectorMerger
+		>;
+
+		AstHandle(const std::string& klass, GenHandle gen, ManipHandle manip)
+			: klass_(klass), gen_handle_(gen), manip_handle_(manip) { }
+
+		bool AllowDummyTrait() const
+		{
+			auto test_dummy_visitor = 
+				[](const auto& handle) { return handle.AllowDummyTrait(); };
+
+			return std::visit(test_dummy_visitor, gen_handle_)
+				&& std::visit(test_dummy_visitor, manip_handle_);
+		}
+
+		AstItem Invoke(AstTraitManager& ctx, Arena& arena, AstItemView rhs) const
+		{
+			auto& trait = AllowDummyTrait()
+				? ctx.Dummy()
+				: ctx.Lookup(klass_);
+
+			auto gen_visitor = [&](const auto& gen) { return gen.Invoke(trait, arena, rhs); };
+			auto result = std::visit(gen_visitor, gen_handle_);
+
+			auto manip_visitor = [&](const auto& manip) { manip.Invoke(trait, result, rhs); };
+			std::visit(manip_visitor, manip_handle_);
+
+			return result;
 		}
 
 	private:
-		using VarType =
-			std::variant<
-			AstSelector,
-			AstEmptyVecGen,
-			AstVecMerger,
-			AstObjectGen
-			>;
+		std::string klass_;
 
-		VarType data_;
+		GenHandle gen_handle_;
+		ManipHandle manip_handle_;
 	};
 }

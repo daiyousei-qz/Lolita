@@ -137,6 +137,7 @@
     <ClCompile Include="grammar.cpp" />
     <ClCompile Include="lexing-automaton.cpp" />
     <ClCompile Include="parsing-automaton.cpp" />
+    <ClCompile Include="parsing-bootstrap.cpp" />
     <ClCompile Include="parsing-table.cpp" />
     <ClCompile Include="regex.cpp" />
     <ClCompile Include="Source.cpp" />
