@@ -13,66 +13,21 @@ using namespace std;
 using namespace eds;
 using namespace eds::text;
 
-namespace eds::loli
+namespace eds::loli::lexing
 {
-	// Implementation Of LexingAutomaton
-	//
-
-	LexingState LexingAutomaton::InitialState() const
-	{
-		return LexingState{ 0 };
-	}
-
-	Terminal* LexingAutomaton::LookupAcceptCategory(LexingState state) const
-	{
-		auto iter = acc_lookup_.find(state);
-
-		return (iter != acc_lookup_.end())
-			? iter->second
-			: nullptr;
-	}
-	void LexingAutomaton::EnumerateTransitions(LexingState src, TransitionVisitor callback) const
-	{
-		const auto offset = src.Id() * 128;
-		for (auto ch = 0; ch < 128; ++ch)
-		{
-			const auto target = jumptable_[offset + ch];
-			if (target.IsValid())
-			{
-				callback(ch, target);
-			}
-		}
-	}
-
-	LexingState LexingAutomaton::NewState(Terminal* acc_term)
-	{
-		auto result = LexingState(jumptable_.size() / 128);
-		
-		// enlarge jumptable
-		jumptable_.resize(jumptable_.size() + 128);
-
-		// register accept terminal if any
-		if (acc_term)
-		{
-			acc_lookup_.insert_or_assign(result, acc_term);
-		}
-
-		return result;
-	}
-	void LexingAutomaton::NewTransition(LexingState src, LexingState target, int ch)
-	{
-		assert(ch >= 0 && ch < 128);
-		assert(src.IsValid() && target.IsValid());
-
-		jumptable_[src.Id() * 128 + ch] = target;
-	}
-
 	// Regex To Deterministic Finite Automata
 	//
 
 	using RegexPositionLabel = const LabelledExpr*;
 	using RegexPositionSet = FlatSet<RegexPositionLabel>;
-	using AcceptCategoryLookup = unordered_map<RegexPositionLabel, Terminal*>;
+	using AcceptCategoryLookup = unordered_map<RegexPositionLabel, int>;
+
+	struct RegexAst
+	{
+		RootExprVec regex_defs = {};
+
+		AcceptCategoryLookup acc_lookup = {};
+	};
 
 	struct RegexNodeInfo
 	{
@@ -238,39 +193,23 @@ namespace eds::loli
 		return RegexEvalResult{ visitor.info_map, visitor.followpos };
 	}
 
-	static auto CreateRegexAst(const Grammar& g)
+	RegexAst CreateRegexAst(Arena& arena, const std::vector<std::string>& defs)
 	{
-		// parse regex
-		Arena arena;
-		auto regex_defs = RootExprVec{};
-		auto acc_lookup = AcceptCategoryLookup{};
+		RegexAst ast;
 
-		// helper function
-		auto register_terminal = [&](Terminal* term) {
-			
-			auto expr = ParseRegex(arena, term->Regex());
-
-			regex_defs.push_back(expr);
-			acc_lookup.insert_or_assign(expr, term);
-		};
-
-
-		// parse normal terminals
-		for (const auto& term : g.Terminals())
+		int index = 0;
+		for (const auto& regex : defs)
 		{
-			register_terminal(term.get());
+			auto expr = ParseRegex(arena, regex);
+
+			ast.regex_defs.push_back(expr);
+			ast.acc_lookup.insert_or_assign(expr, index++);
 		}
 
-		// parse ignored terminals
-		for (const auto& term : g.IgnoredTerminals())
-		{
-			register_terminal(term.get());
-		}
-
-		return make_tuple(arena, regex_defs, acc_lookup);
+		return ast;
 	}
 
-	static auto ComputeInitialPositionSet(const RegexEvalResult& lookup, const RootExprVec& regex_defs)
+	auto ComputeInitialPositionSet(const RegexEvalResult& lookup, const RootExprVec& regex_defs)
 	{
 		RegexPositionSet result;
 		for (const auto regex : regex_defs)
@@ -282,7 +221,7 @@ namespace eds::loli
 		return result;
 	}
 
-	static auto ComputeTargetPositionSet(const RegexEvalResult& lookup, const RegexPositionSet& src, int ch)
+	auto ComputeTargetPositionSet(const RegexEvalResult& lookup, const RegexPositionSet& src, int ch)
 	{
 		RegexPositionSet target;
 		for (auto pos : src)
@@ -297,16 +236,16 @@ namespace eds::loli
 		return target;
 	}
 
-	static auto ComputeAcceptTerminal(const AcceptCategoryLookup& lookup, const RegexPositionSet& set)
+	auto ComputeAcceptCategory(const AcceptCategoryLookup& lookup, const RegexPositionSet& set)
 	{
-		// find out accepting terminal, if any
-		Terminal* result = nullptr;
+		// find out accepting category if any
+		auto result = -1;
 		for (const auto pos : set)
 		{
 			auto iter = lookup.find(pos);
 			if (iter != lookup.end())
 			{
-				if (!result || result->Priority() < iter->second->Priority())
+				if (result == -1 || result > iter->second)
 				{
 					result = iter->second;
 				}
@@ -316,18 +255,20 @@ namespace eds::loli
 		return result;
 	}
 
-	unique_ptr<LexingAutomaton> BuildLexingAutomaton(const Grammar& g)
+	unique_ptr<const LexingAutomaton> BuildLexingAutomaton(const std::vector<std::string>& defs)
 	{
-		auto[arena, regex_defs, acc_lookup] = CreateRegexAst(g);
+		// create ast
+		Arena arena;
+		auto ast = CreateRegexAst(arena, defs);
 
 		// analyze regex trees
-		auto eval_result = CollectRegexNodeInfo(regex_defs);
+		auto eval_result = CollectRegexNodeInfo(ast.regex_defs);
 
 		// NOTE a set of positions of regex node coresponds to a Dfa state
-		auto initial_state = ComputeInitialPositionSet(eval_result, regex_defs);
+		auto initial_state = ComputeInitialPositionSet(eval_result, ast.regex_defs);
 
 		auto dfa = make_unique<LexingAutomaton>();
-		auto dfa_state_lookup = map<RegexPositionSet, LexingState>{ { initial_state, dfa->NewState() } };
+		auto dfa_state_lookup = map<RegexPositionSet, DfaState*>{ { initial_state, dfa->NewState() } };
 
 		for (deque<RegexPositionSet> unprocessed{ initial_state }; !unprocessed.empty(); unprocessed.pop_front())
 		{
@@ -345,7 +286,7 @@ namespace eds::loli
 
 				// if it's a new state, register and queue it
 				// also, we have to find out it's allocated id
-				LexingState dest_state;
+				DfaState* dest_state;
 				if (auto it = dfa_state_lookup.find(dest_set); it != dfa_state_lookup.end())
 				{
 					dest_state = it->second;
@@ -353,7 +294,7 @@ namespace eds::loli
 				else
 				{
 					// find out accepting category, if any
-					auto acc_term = ComputeAcceptTerminal(acc_lookup, dest_set);
+					auto acc_term = ComputeAcceptCategory(ast.acc_lookup, dest_set);
 
 					// allocate state id
 					dest_state = dfa->NewState(acc_term);
@@ -371,9 +312,9 @@ namespace eds::loli
 		return dfa;
 	}
 
-	unique_ptr<LexingAutomaton> OptimizeLexingAutomaton(const LexingAutomaton& atm)
+	unique_ptr<const LexingAutomaton> OptimizeLexingAutomaton(const LexingAutomaton& atm)
 	{
 		// TODO: finish this
-		return make_unique<LexingAutomaton>(atm);
+		throw 0;
 	}
 }

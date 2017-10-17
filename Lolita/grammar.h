@@ -1,14 +1,62 @@
 #pragma once
-#include "symbol.h"
 #include <vector>
+#include <deque>
 #include <memory>
 
-namespace eds::loli
+namespace eds::loli::parsing
 {
+	struct Terminal;
+	struct Nonterminal;
+	struct Production;
+
+	struct Symbol
+	{
+		int id; // different symbol may have the same id
+		int version;
+
+	public:
+		Symbol(int id, int version)
+			: id(id), version(version) { }
+
+		virtual ~Symbol() = default;
+
+		Terminal* AsTerminal();
+		const Terminal* AsTerminal() const;
+		Nonterminal* AsNonterminal();
+		const Nonterminal* AsNonterminal() const;
+	};
+
+	struct Terminal : public Symbol
+	{
+	public:
+		Terminal(int id, int version)
+			: Symbol(id, version) { }
+	};
+
+	struct Nonterminal : public Symbol
+	{
+		// a shortcut reference to outgoing transitions
+		std::vector<Production*> productions;
+
+	public:
+		Nonterminal(int id, int version)
+			: Symbol(id, version) { }
+	};
+
+	struct Production
+	{
+		int id;
+		Nonterminal* lhs;
+		std::vector<Symbol*> rhs;
+
+	public:
+		Production(int id, Nonterminal* lhs, const std::vector<Symbol*>& rhs)
+			: id(id), lhs(lhs), rhs(rhs) { }
+	};
+
 	class Grammar
 	{
 	public:
-
 		// Basic Info
 		//
 
@@ -16,7 +64,7 @@ namespace eds::loli
 		{
 			return terms_.size();
 		}
-		int NonTerminalCount() const
+		int NonterminalCount() const
 		{
 			return nonterms_.size();
 		}
@@ -25,7 +73,7 @@ namespace eds::loli
 			return productions_.size();
 		}
 
-		NonTerminal* RootSymbol() const
+		Nonterminal* RootSymbol() const
 		{
 			return root_symbol_;
 		}
@@ -34,11 +82,7 @@ namespace eds::loli
 		{
 			return terms_;
 		}
-		const auto& Grammar::IgnoredTerminals() const
-		{
-			return ignored_terms_;
-		}
-		const auto& Grammar::NonTerminals() const
+		const auto& Grammar::Nonterminals() const
 		{
 			return nonterms_;
 		}
@@ -47,22 +91,18 @@ namespace eds::loli
 			return productions_;
 		}
 
-		// Construction
-		//
+		void ConfigureRootSymbol(Nonterminal* s);
 
-		void ConfigureRootSymbol(NonTerminal* s);
-
-		Terminal* NewTerm(const std::string& name, const std::string& regex, bool ignored);
-		NonTerminal* NewNonTerm(const std::string& name);
-		Production* NewProduction(NonTerminal* lhs, const std::vector<Symbol*>& rhs);
+		Terminal* NewTerm(int id, int version = 0);
+		Nonterminal* NewNonterm(int id, int version = 0);
+		Production* NewProduction(int id, Nonterminal* lhs, const std::vector<Symbol*>& rhs);
 
 	private:
-		NonTerminal* root_symbol_;
+		Nonterminal* root_symbol_;
 
-		std::vector<std::unique_ptr<Terminal>> terms_;
-		std::vector<std::unique_ptr<Terminal>> ignored_terms_;
-
-		std::vector<std::unique_ptr<NonTerminal>> nonterms_;
-		std::vector<std::unique_ptr<Production>> productions_;
+		// use deque to avoid pointer invalidation
+		std::deque<Terminal> terms_;
+		std::deque<Nonterminal> nonterms_;
+		std::deque<Production> productions_;
 	};
 }

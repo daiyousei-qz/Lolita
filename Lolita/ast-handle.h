@@ -22,7 +22,7 @@ namespace eds::loli
 		class AllowDummyTrait
 		{
 		public:
-			bool AllowDummyTrait() const
+			bool AcceptDummyTrait() const
 			{
 				return Value;
 			}
@@ -148,10 +148,10 @@ namespace eds::loli
 		AstHandle(const std::string& klass, GenHandle gen, ManipHandle manip)
 			: klass_(klass), gen_handle_(gen), manip_handle_(manip) { }
 
-		bool AllowDummyTrait() const
+		bool AcceptDummyTrait() const
 		{
 			auto test_dummy_visitor = 
-				[](const auto& handle) { return handle.AllowDummyTrait(); };
+				[](const auto& handle) { return handle.AcceptDummyTrait(); };
 
 			return std::visit(test_dummy_visitor, gen_handle_)
 				&& std::visit(test_dummy_visitor, manip_handle_);
@@ -159,7 +159,7 @@ namespace eds::loli
 
 		AstItem Invoke(AstTraitManager& ctx, Arena& arena, AstItemView rhs) const
 		{
-			auto& trait = AllowDummyTrait()
+			auto& trait = AcceptDummyTrait()
 				? ctx.Dummy()
 				: ctx.Lookup(klass_);
 

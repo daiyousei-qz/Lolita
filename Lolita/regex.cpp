@@ -7,7 +7,7 @@ using namespace std;
 using namespace eds;
 using namespace eds::text;
 
-namespace eds::loli
+namespace eds::loli::lexing
 {
 	// Parsing
 	//
@@ -29,9 +29,18 @@ namespace eds::loli
 	{
 		assert(!seq.empty());
 
-		auto expr = arena.Construct<SequenceExpr>(seq);
+		if (seq.size() == 1)
+		{
+			any.push_back(seq.front());
+		}
+		else
+		{
+			any.push_back(
+				arena.Construct<SequenceExpr>(seq)
+			);
+		}
+
 		seq.clear();
-		any.push_back(expr);
 	}
 
 	int EscapeRawCharacter(int ch)
@@ -68,11 +77,11 @@ namespace eds::loli
 		{
 			RegexParsingAssert(*p != '\0', kMsgUnexpectedEof);
 
-			result = EscapeRawCharacter(Consume(str));
+			result = EscapeRawCharacter(Consume(p));
 		}
 		else
 		{
-			result = *p;
+			result = Consume(p);
 		}
 
 		str = p;

@@ -6,7 +6,7 @@
 #include <variant>
 #include <optional>
 
-namespace eds::loli
+namespace eds::loli::config
 {
 	// Type
 	//
@@ -51,8 +51,8 @@ namespace eds::loli
 
 	struct NodeDefinition
 	{
-		std::string parent;
 		std::string name;
+		std::string parent;
 
 		std::vector<NodeMember> members;
 	};
@@ -76,7 +76,7 @@ namespace eds::loli
 		QualType type;
 
 		std::string lhs;
-		std::vector<std::unique_ptr<RuleItem>> items;
+		std::vector<RuleItem> items;
 	};
 
 	// Config

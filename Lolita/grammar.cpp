@@ -1,48 +1,53 @@
 #include "grammar.h"
+#include <cassert>
 
 using namespace std;
 
-namespace eds::loli
+namespace eds::loli::parsing
 {
+	// ==============================================================
+	// Implementation Of Symbol
+
+	Terminal* Symbol::AsTerminal()
+	{
+		return dynamic_cast<Terminal*>(this);
+	}
+	const Terminal* Symbol::AsTerminal() const
+	{
+		return dynamic_cast<const Terminal*>(this);
+	}
+	Nonterminal* Symbol::AsNonterminal()
+	{
+		return dynamic_cast<Nonterminal*>(this);
+	}
+	const Nonterminal* Symbol::AsNonterminal() const
+	{
+		return dynamic_cast<const Nonterminal*>(this);
+	}
+
 	// ==============================================================
 	// Implementation Of Grammar
 
-	// Construction
-	//
-
-	void Grammar::ConfigureRootSymbol(NonTerminal* s)
+	void Grammar::ConfigureRootSymbol(Nonterminal* s)
 	{
 		root_symbol_ = s;
 	}
 
-	Terminal* Grammar::NewTerm(const string& name, const string& regex, bool ignored)
+	Terminal* Grammar::NewTerm(int id, int version)
 	{
-		terms_.push_back(
-			make_unique<Terminal>(terms_.size(), name, regex, ignored)
-		);
-
-		return terms_.back().get();
+		return &terms_.emplace_back(id, version);
 	}
 
-	NonTerminal* Grammar::NewNonTerm(const string& name)
+	Nonterminal* Grammar::NewNonterm(int id, int version)
 	{
-		nonterms_.push_back(
-			make_unique<NonTerminal>(nonterms_.size(), name)
-		);
-
-		return nonterms_.back().get();
+		return &nonterms_.emplace_back(id, version);
 	}
 
-	Production* Grammar::NewProduction(NonTerminal* lhs, const vector<Symbol*>& rhs)
+	Production* Grammar::NewProduction(int id, Nonterminal* lhs, const vector<Symbol*>& rhs)
 	{
 		assert(!rhs.empty());
 
-		productions_.push_back(
-			make_unique<Production>(productions_.size(), lhs, rhs)
-		);
-
-		// update records in nonterm definition
-		auto result = productions_.back().get();
+		auto result = &productions_.emplace_back(id, lhs, rhs);
 		lhs->productions.push_back(result);
 
 		return result;

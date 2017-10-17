@@ -2,7 +2,7 @@
 #include <functional>
 #include <cassert>
 
-namespace eds::loli
+namespace eds::loli::lexing
 {
 	// Basic Decl
 	//
@@ -99,7 +99,7 @@ namespace eds::loli
 		auto Child() const { return child_; }
 
 		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
-		bool TestPassage(int ch) const override { return true; }
+		bool TestPassage(int ch) const override { return false; }
 
 	private:
 		RegexExprPtr child_;

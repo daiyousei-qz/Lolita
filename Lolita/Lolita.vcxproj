@@ -119,6 +119,7 @@
     <ClInclude Include="ast-trait.h" />
     <ClInclude Include="basic.h" />
     <ClInclude Include="config.h" />
+    <ClInclude Include="debug.h" />
     <ClInclude Include="grammar-analytic.h" />
     <ClInclude Include="grammar.h" />
     <ClInclude Include="lexing-automaton.h" />
@@ -128,11 +129,11 @@
     <ClInclude Include="parsing-table.h" />
     <ClInclude Include="regex.h" />
     <ClInclude Include="serialization.h" />
-    <ClInclude Include="symbol.h" />
     <ClInclude Include="table.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="config.cpp" />
+    <ClCompile Include="debug.cpp" />
     <ClCompile Include="grammar-analytic.cpp" />
     <ClCompile Include="grammar.cpp" />
     <ClCompile Include="lexing-automaton.cpp" />

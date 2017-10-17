@@ -5,12 +5,17 @@
 #include <map>
 #include <unordered_map>
 #include <tuple>
+#include <cassert>
 
 using namespace std;
 using namespace eds;
 
-namespace eds::loli
+namespace eds::loli::parsing
 {
+	// Implmentation of ParsingAutomaton
+	//
+
+
 	// by convention, if production is set nullptr
 	// it's an imaginary root production
 	struct ParsingItem
@@ -24,14 +29,14 @@ namespace eds::loli
 			: production(p), cursor(cursor)
 		{
 			assert(p != nullptr);
-			assert(cursor >= 0 && cursor <= p->Right().size());
+			assert(cursor >= 0 && cursor <= p->rhs.size());
 		}
 
-		Symbol* NextSymbol() const
+		const Symbol* NextSymbol() const
 		{
 			if (IsFinalized()) return nullptr;
 
-			return production->Right()[cursor];
+			return production->rhs[cursor];
 		}
 
 		// if it's not any P -> . \alpha
@@ -45,7 +50,7 @@ namespace eds::loli
 		// if it's some P -> \alpha .
 		bool IsFinalized() const
 		{
-			return cursor == production->Right().size();
+			return cursor == production->rhs.size();
 		}
 	};
 
@@ -87,19 +92,19 @@ namespace eds::loli
 	// and then enumerate items with a callback
 	void EnumerateClosureItems(const Grammar& g, const ItemSet& state, function<void(ParsingItem)> callback)
 	{
-		unordered_map<NonTerminal*, bool> added;
-		added[g.RootSymbol()] = true; // treat root symbol's items as kernal
+		auto added = vector<bool>(g.NonterminalCount(), false);
+		auto unvisited = vector<const Nonterminal*>{};
 
-		vector<NonTerminal*> unvisited;
+		// treat root symbol's items as kernal
+		added[g.RootSymbol()->id] = true;
 
-		auto try_register_candidate = [&](Symbol* s) {
-			if (s->IsNonTerminal())
+		// helper
+		auto try_register_candidate = [&](const Symbol* s) {
+			if (auto candidate = s->AsNonterminal(); candidate)
 			{
-				auto candidate = s->AsNonTerminal();
-
-				if (!added[candidate])
+				if (!added[candidate->id])
 				{
-					added[candidate] = true;
+					added[candidate->id] = true;
 					unvisited.push_back(candidate);
 				}
 			}
@@ -125,11 +130,11 @@ namespace eds::loli
 			auto lhs = unvisited.back();
 			unvisited.pop_back();
 
-			for (const auto p : lhs->Productions())
+			for (const auto p : lhs->productions)
 			{
 				callback(ParsingItem{ p, 0 });
 
-				const auto& rhs = p->Right();
+				const auto& rhs = p->rhs;
 				if (!rhs.empty())
 				{
 					try_register_candidate(rhs.front());
@@ -141,7 +146,7 @@ namespace eds::loli
 	// TODO: directly generate vector
 	// claculate target state from a source state with a particular symbol s
 	// and enumerate its items with a callback
-	ItemSet GenerateGotoItems(const Grammar& g, const ItemSet& src, Symbol* s)
+	ItemSet GenerateGotoItems(const Grammar& g, const ItemSet& src, const Symbol* s)
 	{
 		ItemSet new_state;
 
@@ -153,7 +158,7 @@ namespace eds::loli
 
 			// for Item A -> \alpha . B \beta where B == s
 			// advance the cursor
-			if (item.production->Right()[item.cursor] == s)
+			if (item.production->rhs[item.cursor] == s)
 			{
 				new_state.insert(ParsingItem{ item.production, item.cursor + 1 });
 			}
@@ -165,7 +170,7 @@ namespace eds::loli
 	ItemSet GenerateInitialItemSet(const Grammar& g)
 	{
 		ItemSet result;
-		for (auto p : g.RootSymbol()->Productions())
+		for (auto p : g.RootSymbol()->productions)
 		{
 			result.insert(ParsingItem{ p, 0 });
 		}
@@ -173,15 +178,16 @@ namespace eds::loli
 		return result;
 	}
 
-	// F should be some void(Symbol*)
 	template <typename F>
 	void EnumerateSymbols(const Grammar& g, F callback)
 	{
-		for (const auto& term : g.Terminals())
-			callback(term.get());
+		static_assert(is_invocable_v<F, const Symbol*>);
 
-		for (const auto& nonterm : g.NonTerminals())
-			callback(nonterm.get());
+		for (const auto& term : g.Terminals())
+			callback(&term);
+
+		for (const auto& nonterm : g.Nonterminals())
+			callback(&nonterm);
 	}
 
 	auto GenerateBasicParsingAutomaton(const Grammar& g)
@@ -198,7 +204,7 @@ namespace eds::loli
 			const auto& src_item_set = unprocessed.front();
 			const auto src_state = state_lookup[src_item_set];
 
-			EnumerateSymbols(g, [&](Symbol* s) {
+			EnumerateSymbols(g, [&](const Symbol* s) {
 
 				// calculate the target state for symbol s
 				ItemSet dest_item_set = GenerateGotoItems(g, src_item_set, s);
@@ -208,7 +214,7 @@ namespace eds::loli
 
 				// compute target state
 				ParsingState* dest_state;
-				auto iter = std::find(state_lookup.begin(), state_lookup.end(), dest_item_set);
+				auto iter = state_lookup.find(dest_item_set);
 				if (iter != state_lookup.end())
 				{
 					dest_state = iter->second;
@@ -217,7 +223,10 @@ namespace eds::loli
 				{
 					// if new_state is not recorded in states, create one
 					dest_state = pda->NewState();
+
+					// TODO: use move here?
 					state_lookup.insert_or_assign(dest_item_set, dest_state);
+					unprocessed.push_back(dest_item_set);
 				}
 
 				// add transition
@@ -228,7 +237,7 @@ namespace eds::loli
 		return make_tuple(move(pda), move(state_lookup));
 	}
 
-	unique_ptr<ParsingAutomaton> BuildSLRParsingTable(const Grammar& g)
+	unique_ptr<const ParsingAutomaton> BuildSLRAutomaton(const Grammar& g)
 	{
 		auto[atm, state_lookup] = GenerateBasicParsingAutomaton(g);
 
@@ -242,8 +251,8 @@ namespace eds::loli
 
 			for (auto item : item_set)
 			{
-				const auto& lhs = item.production->Left();
-				const auto& rhs = item.production->Right();
+				const auto& lhs = item.production->lhs;
+				const auto& rhs = item.production->rhs;
 
 				const auto& lhs_info = ps.at(lhs);
 

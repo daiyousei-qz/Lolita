@@ -1,11 +1,10 @@
 #pragma once
 #include "ast-handle.h"
-#include "grammar.h"
 #include "config.h"
 #include <memory>
 #include <string>
 #include <vector>
-#include <unordered_set>
+#include <unordered_map>
 
 namespace eds::loli
 {
@@ -56,7 +55,7 @@ namespace eds::loli
 	struct TokenDummyType : public TypeInfo
 	{
 	private:
-		TokenDummyType() : TypeInfo("token"s) { }
+		TokenDummyType() : TypeInfo("token") { }
 
 	public:
 
@@ -176,8 +175,8 @@ namespace eds::loli
 
 	struct ProductionInfo
 	{
-		VariableInfo* lhs;
-		std::vector<SymbolInfo*> rhs;
+		const VariableInfo* lhs;
+		std::vector<const SymbolInfo*> rhs;
 
 		std::unique_ptr<AstHandle> handle;
 	};
@@ -185,31 +184,46 @@ namespace eds::loli
 	class ParserBootstrapInfo
 	{
 	public:
+		struct ParserBootstrapContext
+		{
+			std::unordered_map<std::string, TypeInfo*> type_lookup;
+			std::vector<EnumInfo> enums;
+			std::vector<BaseInfo> bases;
+			std::vector<KlassInfo> klasses;
 
-		const auto& Enums() const { return enums_; }
-		const auto& Bases() const { return bases_; }
-		const auto& Klasses() const { return klasses_; }
+			std::unordered_map<std::string, SymbolInfo*> symbol_lookup;
+			std::vector<TokenInfo> tokens;
+			std::vector<TokenInfo> ignored_tokens;
+			std::vector<VariableInfo> variables;
+			std::vector<ProductionInfo> productions;
+		};
 
-		const auto& Tokens() const { return tokens_; }
-		const auto& IgnoredTokens() const { return ignored_tokens_; }
-		const auto& Variables() const { return variables_; }
-		const auto& Productions() const { return productions_; }
+		ParserBootstrapInfo(ParserBootstrapContext data)
+			: ctx_(std::move(data)) { }
 
+		const auto& Enums() const { return ctx_.enums; }
+		const auto& Bases() const { return ctx_.bases; }
+		const auto& Klasses() const { return ctx_.klasses; }
+
+		const auto& Tokens() const { return ctx_.tokens; }
+		const auto& IgnoredTokens() const { return ctx_.ignored_tokens; }
+		const auto& Variables() const { return ctx_.variables; }
+		const auto& Productions() const { return ctx_.productions; }
+
+		const auto& LookupType(const std::string& name)
+		{
+			return *ctx_.type_lookup.at(name);
+		}
+		const auto& LookupSymbol(const std::string& name)
+		{
+			return *ctx_.symbol_lookup.at(name);
+		}
 
 	private:
-		std::vector<EnumInfo> enums_;
-		std::vector<BaseInfo> bases_;
-		std::vector<KlassInfo> klasses_;
+		friend std::unique_ptr<ParserBootstrapInfo> BootstrapParser(const config::Config& config);
 
-		std::vector<TokenInfo> tokens_;
-		std::vector<TokenInfo> ignored_tokens_;
-		std::vector<VariableInfo> variables_;
-
-		std::vector<ProductionInfo> productions_;
-
-		std::unordered_map<std::string, TypeInfo*> type_lookup_;
-		std::unordered_map<std::string, SymbolInfo*> symbol_lookup_;
+		ParserBootstrapContext ctx_;
 	};
 
-	std::unique_ptr<ParserBootstrapInfo> BootstrapParser(const Config& config);
+	std::unique_ptr<ParserBootstrapInfo> BootstrapParser(const config::Config& config);
 }

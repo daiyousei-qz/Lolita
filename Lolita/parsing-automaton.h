@@ -1,5 +1,4 @@
 #pragma once
-#include "symbol.h"
 #include "grammar.h"
 #include <stack>
 #include <vector>
@@ -8,8 +7,9 @@
 #include <memory>
 #include <type_traits>
 #include <functional>
+#include <cassert>
 
-namespace eds::loli
+namespace eds::loli::parsing
 {
 	// Parsing Actions
 	//
@@ -22,42 +22,73 @@ namespace eds::loli
 	};
 	struct ActionReduce
 	{
-		Production* production;
+		const Production* production;
 	};
 
 	using ParsingAction = std::variant<ActionShift, ActionReduce>;
 
-	class ParsingState
+	struct ParsingState
 	{
+		int id;
+
+		std::optional<ParsingAction> eof_action;
+		std::unordered_map<const Terminal*, ParsingAction> action_map;
+		std::unordered_map<const Nonterminal*, ParsingState*> goto_map;
+
 	public:
-		bool IsFinal() const { return is_final_; }
-
-		const auto& ActionMap() const { return action_map_; }
-		const auto& GotoMap() const { return goto_map_; }
-
-	private:
-		friend class ParsingAutomaton;
-
-		bool is_final_ = false;
-
-		std::unordered_map<Terminal*, ParsingAction> action_map_;
-		std::unordered_map<NonTerminal*, ParsingState*> goto_map_;
+		ParsingState(int id)
+			: id(id) { }
 	};
 
 	class ParsingAutomaton
 	{
 	public:
-		ParsingState* InitialState() const;
+		int StateCount() const
+		{
+			return states_.size();
+		}
+		const ParsingState* LookupState(int id) const
+		{
+			return states_.at(id).get();
+		}
 
-		ParsingState* NewState();
+		ParsingState* NewState()
+		{
+			auto id = StateCount();
 
-		void RegisterShift(ParsingState* src, ParsingState* dest, Symbol* s);
-		void RegisterReduce(ParsingState* src, Production* p, Terminal* s);
-		void RegisterReduceOnEof(ParsingState* src, Production* p);
+			return states_.emplace_back(
+				std::make_unique<ParsingState>(id)
+			).get();
+		}
+
+		void RegisterShift(ParsingState* src, ParsingState* dest, const Symbol* s)
+		{
+			if (auto term = s->AsTerminal(); term)
+			{
+				assert(src->action_map.count(term) == 0);
+				src->action_map.insert_or_assign(term, ActionShift{ dest });
+			}
+			else
+			{
+				auto nonterm = s->AsNonterminal();
+				assert(src->goto_map.count(nonterm) == 0);
+				src->goto_map.insert_or_assign(nonterm, dest);
+			}
+		}
+		void RegisterReduce(ParsingState* src, Production* p, const Terminal* s)
+		{
+			assert(src->action_map.count(s) == 0);
+			src->action_map.insert_or_assign(s, ActionReduce{ p });
+		}
+		void RegisterReduceOnEof(ParsingState* src, const Production* p)
+		{
+			assert(!src->eof_action.has_value());
+			src->eof_action = ActionReduce{ p };
+		}
 
 	private:
 		std::vector<std::unique_ptr<ParsingState>> states_;
 	};
 
-	std::unique_ptr<ParsingAutomaton> BuildSLRParsingTable(const Grammar& grammar);
+	std::unique_ptr<const ParsingAutomaton> BuildSLRAutomaton(const Grammar& g);
 }

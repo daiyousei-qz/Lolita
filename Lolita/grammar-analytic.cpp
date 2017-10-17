@@ -1,9 +1,12 @@
 #include "grammar-analytic.h"
+#include "lang-helper.h"
 
 using namespace std;
 
-namespace eds::loli
+namespace eds::loli::parsing
 {
+	using TermSet = PredictiveInfo::TermSet;
+
 	// try to insert FIRST SET of s into output
 	static bool TryInsertFIRST(const PredictiveSet& lookup, TermSet& output, Symbol* s)
 	{
@@ -11,13 +14,13 @@ namespace eds::loli
 		const auto old_output_sz = output.size();
 
 		// try insert terminals that start s into output
-		if (s->IsTerminal())
+		if (auto term = s->AsTerminal(); term)
 		{
-			output.insert(s->AsTerminal());
+			output.insert(term);
 		}
-		else // non-term
+		else
 		{
-			const auto& source_set = lookup.at(s->AsNonTerminal()).first_set;
+			const auto& source_set = lookup.at(s->AsNonterminal()).first_set;
 			output.insert(source_set.begin(), source_set.end());
 		}
 
@@ -26,13 +29,13 @@ namespace eds::loli
 	}
 
 	// try to insert FOLLOW SET of s into output
-	static bool TryInsertFOLLOW(const PredictiveSet& lookup, TermSet& output, NonTerminal* s)
+	static bool TryInsertFOLLOW(const PredictiveSet& lookup, TermSet& output, Nonterminal* s)
 	{
 		// remember output's size
 		const auto old_output_sz = output.size();
 
 		// try insert terminals that may follow s into output
-		const auto& source_set = lookup.at(s->AsNonTerminal()).follow_set;
+		const auto& source_set = lookup.at(s->AsNonterminal()).follow_set;
 		output.insert(source_set.begin(), source_set.end());
 
 		// return if output is changed
@@ -48,16 +51,17 @@ namespace eds::loli
 
 			for (const auto& production : g.Productions())
 			{
-				auto& target_info = set.at(production->Left());
+				auto& target_info = set[production.lhs];
 
 				bool may_produce_epsilon = true;
-				for (const auto rhs_elem : production->Right())
+				for (const auto rhs_elem : production.rhs)
 				{
 					growing |= TryInsertFIRST(set, target_info.first_set, rhs_elem);
 
 					// break on first non-epsilon-derivable symbol
-					if (rhs_elem->IsTerminal() 
-						|| !set.at(rhs_elem->AsNonTerminal()).may_produce_epsilon)
+
+					if (rhs_elem->AsTerminal() 
+						|| !set[rhs_elem->AsNonterminal()].may_produce_epsilon)
 					{
 						may_produce_epsilon = false;
 						break;
@@ -79,7 +83,7 @@ namespace eds::loli
 	static void ComputeFOLLOW(PredictiveSet& set, const Grammar& g)
 	{
 		// root symbol is always able to preceed eof
-		set.at(g.RootSymbol()).may_preceed_eof = true;
+		set[g.RootSymbol()].may_preceed_eof = true;
 
 		// iteratively compute follow set until it's not growing
 		for (auto growing = true; growing;)
@@ -89,8 +93,8 @@ namespace eds::loli
 			for (const auto& production : g.Productions())
 			{
 				// shortcuts alias
-				const auto& lhs = production->Left();
-				const auto& rhs = production->Right();
+				const auto& lhs = production.lhs;
+				const auto& rhs = production.rhs;
 
 				// epsilon_path is set false when any non-nullable symbol is encountered
 				bool epsilon_path = true;
@@ -100,9 +104,9 @@ namespace eds::loli
 					if (const auto la_iter = std::next(iter); la_iter != rhs.rend())
 					{
 						const auto la_symbol = *la_iter;
-						if (la_symbol->IsNonTerminal())
+						if (auto nonterm = la_symbol->AsNonterminal(); nonterm)
 						{
-							auto& la_follow = set.at(la_symbol->AsNonTerminal()).follow_set;
+							auto& la_follow = set[nonterm].follow_set;
 							growing |= TryInsertFIRST(set, la_follow, *iter);
 						}
 					}
@@ -111,14 +115,9 @@ namespace eds::loli
 					if (epsilon_path)
 					{
 						const auto cur_symbol = *iter;
-
-						if (cur_symbol->IsTerminal())
+						if (auto nonterm = cur_symbol->AsNonterminal(); nonterm)
 						{
-							epsilon_path = false;
-						}
-						else
-						{
-							auto& cur_symbol_info = set.at(cur_symbol->AsNonTerminal());
+							auto& cur_symbol_info = set[cur_symbol->AsNonterminal()];
 
 							if (!cur_symbol_info.may_produce_epsilon)
 							{
@@ -127,7 +126,7 @@ namespace eds::loli
 
 							// propagate may_preceed_eof on epsilon path
 							if (!cur_symbol_info.may_preceed_eof
-								&& set.at(lhs).may_preceed_eof)
+								&& set[lhs].may_preceed_eof)
 							{
 								growing = true;
 								cur_symbol_info.may_preceed_eof = true;
@@ -135,6 +134,10 @@ namespace eds::loli
 
 							// propagate follow_set on epsilon path
 							growing |= TryInsertFOLLOW(set, cur_symbol_info.follow_set, lhs);
+						}
+						else
+						{
+							epsilon_path = false;
 						}
 					}
 				}
@@ -145,6 +148,11 @@ namespace eds::loli
 	PredictiveSet ComputePredictiveSet(const Grammar& g)
 	{
 		PredictiveSet result;
+
+		for (const auto& nonterm : g.Nonterminals())
+		{
+			result[&nonterm];
+		}
 
 		ComputeFIRST(result, g);
 		ComputeFOLLOW(result, g);

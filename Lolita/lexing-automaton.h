@@ -1,72 +1,61 @@
 #pragma once
 #include "regex.h"
-#include "grammar.h"
+#include "parsing-bootstrap.h"
 #include <functional>
 #include <optional>
 
-namespace eds::loli
+namespace eds::loli::lexing
 {
-	class LexingState
+	struct DfaState;
+	struct DfaTransition;
+
+	struct DfaState
 	{
+		int id;
+		int acc_category;
+		std::unordered_map<int, DfaState*> transitions;
+
 	public:
-		struct Hasher
-		{
-			size_t operator()(LexingState s) const
-			{
-				return s.Id();
-			}
-		};
-
-		explicit LexingState(int id) : id_(id) { }
-		explicit LexingState() : LexingState(-1) { }
-
-		bool IsValid() const noexcept
-		{
-			return id_ >= 0;
-		}
-
-		int Id() const noexcept
-		{
-			return id_;
-		}
-
-	private:
-		int id_;
+		DfaState(int id, int acc_category)
+			: id(id), acc_category(acc_category) { }
 	};
 
-	inline bool operator==(LexingState lhs, LexingState rhs)
-	{
-		return lhs.Id() == rhs.Id();
-	}
-	inline bool operator!=(LexingState lhs, LexingState rhs)
-	{
-		return !(lhs == rhs);
-	}
-
-	class LexingAutomaton
+	class LexingAutomaton : NonCopyable
 	{
 	public:
 		// Accessor
 		//
 
-		// (ch, target_state)
-		using TransitionVisitor = std::function<void(int, LexingState)>;
-
-		LexingState InitialState() const;
-		Terminal* LookupAcceptCategory(LexingState state) const;
-		void EnumerateTransitions(LexingState src, TransitionVisitor callback) const;
+		int StateCount() const
+		{
+			return states_.size();
+		}
+		const DfaState* LookupState(int id) const
+		{
+			return states_.at(id).get();
+		}
 
 		// Construction
 		//
 
-		LexingState NewState(Terminal* acc_term = nullptr);
-		void NewTransition(LexingState src, LexingState dest, int ch);
+		DfaState* NewState(int acc_category = -1)
+		{
+			int id = StateCount();
+
+			return states_.emplace_back(
+				std::make_unique<DfaState>(id, acc_category)
+			).get();
+		}
+		void NewTransition(DfaState* src, DfaState* target, int ch)
+		{
+			assert(src->transitions.count(ch) == 0);
+			src->transitions.insert_or_assign(ch, target);
+		}
 
 	private:
-		std::unordered_map<LexingState, Terminal*, LexingState::Hasher> acc_lookup_;
-		std::vector<LexingState> jumptable_;
+		std::vector<std::unique_ptr<DfaState>> states_;
 	};
 
-	std::unique_ptr<LexingAutomaton> BuildLexingAutomaton(const Grammar& g);
-	std::unique_ptr<LexingAutomaton> OptimizeLexingAutomaton(const LexingAutomaton& atm);
+	std::unique_ptr<const LexingAutomaton> BuildLexingAutomaton(const std::vector<std::string>& regex);
+	std::unique_ptr<const LexingAutomaton> OptimizeLexingAutomaton(const LexingAutomaton& atm);
 }
