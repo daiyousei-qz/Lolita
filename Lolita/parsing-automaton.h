@@ -24,14 +24,13 @@ namespace eds::loli::parsing
 	{
 		const Production* production;
 	};
-
 	using ParsingAction = std::variant<ActionShift, ActionReduce>;
 
 	struct ParsingState
 	{
 		int id;
 
-		std::optional<ParsingAction> eof_action;
+		std::optional<ActionReduce> eof_action;
 		std::unordered_map<const Terminal*, ParsingAction> action_map;
 		std::unordered_map<const Nonterminal*, ParsingState*> goto_map;
 

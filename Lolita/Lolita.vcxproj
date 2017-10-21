@@ -69,7 +69,9 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>C:\Users\sunks\Documents\Projects\edslib\edslib\src;$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -116,8 +118,11 @@
   <ItemGroup>
     <ClInclude Include="ast-basic.h" />
     <ClInclude Include="ast-handle.h" />
+    <ClInclude Include="ast-include.h" />
     <ClInclude Include="ast-trait.h" />
     <ClInclude Include="basic.h" />
+    <ClInclude Include="calc.h" />
+    <ClInclude Include="calc2.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="grammar-analytic.h" />
@@ -137,6 +142,7 @@
     <ClCompile Include="grammar-analytic.cpp" />
     <ClCompile Include="grammar.cpp" />
     <ClCompile Include="lexing-automaton.cpp" />
+    <ClCompile Include="parser.cpp" />
     <ClCompile Include="parsing-automaton.cpp" />
     <ClCompile Include="parsing-bootstrap.cpp" />
     <ClCompile Include="parsing-table.cpp" />

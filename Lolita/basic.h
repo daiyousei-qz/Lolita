@@ -3,6 +3,6 @@
 
 namespace eds::loli
 {
-	using eds::NonCopyable;
-	using eds::NonMovable;
+	template <typename T>
+	struct AlwaysFalse : std::false_type { };
 }

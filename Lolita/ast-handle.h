@@ -32,15 +32,15 @@ namespace eds::loli
 	// Gen
 	//
 
-	class AstEnumGen : public detail::AllowDummyTrait<true>
+	class AstEnumGen : public detail::AllowDummyTrait<false>
 	{
 	public:
 		AstEnumGen(int value)
 			: value_(value) { }
 
-		AstItem Invoke(AstTraitInterface& trait, Arena& arena, AstItemView rhs) const
+		AstItem Invoke(AstObjectTrait& trait, Arena& arena, AstItemView rhs) const
 		{
-			return value_;
+			return trait.ConstructEnum(value_);
 		}
 
 	private:
@@ -49,7 +49,7 @@ namespace eds::loli
 	class AstObjectGen : public detail::AllowDummyTrait<false>
 	{
 	public:
-		AstItem Invoke(AstTraitInterface& trait, Arena& arena, AstItemView rhs) const
+		AstItem Invoke(AstObjectTrait& trait, Arena& arena, AstItemView rhs) const
 		{
 			return trait.ConstructObject(arena);
 		}
@@ -57,7 +57,7 @@ namespace eds::loli
 	class AstVectorGen : public detail::AllowDummyTrait<false>
 	{
 	public:
-		AstItem Invoke(AstTraitInterface& trait, Arena& arena, AstItemView rhs) const
+		AstItem Invoke(AstObjectTrait& trait, Arena& arena, AstItemView rhs) const
 		{
 			return trait.ConstructVector(arena);
 		}
@@ -68,9 +68,9 @@ namespace eds::loli
 		AstItemSelector(int index)
 			: index_(index) { }
 
-		AstItem Invoke(AstTraitInterface& trait, Arena& arena, AstItemView rhs) const
+		AstItem Invoke(AstObjectTrait& trait, Arena& arena, AstItemView rhs) const
 		{
-			return rhs.At(index_).object;
+			return rhs.At(index_);
 		}
 
 	private:
@@ -83,7 +83,7 @@ namespace eds::loli
 	class AstManipPlaceholder : public detail::AllowDummyTrait<true>
 	{
 	public:
-		void Invoke(AstTraitInterface& trait, AstItem item, AstItemView rhs) const { }
+		void Invoke(AstObjectTrait& trait, AstItem item, AstItemView rhs) const { }
 	};
 	class AstObjectSetter : public detail::AllowDummyTrait<false>
 	{
@@ -97,11 +97,11 @@ namespace eds::loli
 		AstObjectSetter(const std::vector<SetterPair>& setters)
 			: setters_(setters) { }
 
-		void Invoke(AstTraitInterface& trait, AstItem item, AstItemView rhs) const
+		void Invoke(AstObjectTrait& trait, AstItem obj, AstItemView rhs) const
 		{
-			for (auto pair : setters_)
+			for (auto setter : setters_)
 			{
-				trait.AssignField(item.object, pair.cordinal, rhs.At(pair.index));
+				trait.AssignField(obj, setter.cordinal, rhs.At(setter.index));
 			}
 		}
 
@@ -114,11 +114,11 @@ namespace eds::loli
 		AstVectorMerger(const std::vector<int>& indices)
 			: indices_(indices) { }
 
-		void Invoke(AstTraitInterface& trait, AstItem item, AstItemView rhs) const
+		void Invoke(AstObjectTrait& trait, AstItem vec, AstItemView rhs) const
 		{
 			for (auto index : indices_)
 			{
-				trait.InsertElement(item.vector, rhs.At(index));
+				trait.InsertElement(vec, rhs.At(index));
 			}
 		}
 

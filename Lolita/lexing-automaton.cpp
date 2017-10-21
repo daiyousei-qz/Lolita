@@ -255,7 +255,7 @@ namespace eds::loli::lexing
 		return result;
 	}
 
-	unique_ptr<const LexingAutomaton> BuildLexingAutomaton(const std::vector<std::string>& defs)
+	unique_ptr<const LexingAutomaton> BuildDfaAutomaton(const std::vector<std::string>& defs)
 	{
 		// create ast
 		Arena arena;

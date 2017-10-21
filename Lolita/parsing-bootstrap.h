@@ -8,16 +8,16 @@
 
 namespace eds::loli
 {
-	class TypeInfo;
-	class EnumInfo;
-	class BaseInfo;
-	class KlassInfo;
+	struct TypeInfo;
+	struct EnumInfo;
+	struct BaseInfo;
+	struct KlassInfo;
 
-	class SymbolInfo;
-	class TokenInfo;
-	class VariableInfo;
+	struct SymbolInfo;
+	struct TokenInfo;
+	struct VariableInfo;
 
-	class ProductionInfo;
+	struct ProductionInfo;
 
 	// Type metadata
 	//
@@ -37,6 +37,17 @@ namespace eds::loli
 
 		virtual Category GetCategory() const = 0;
 
+		bool IsToken() const { return GetCategory() == Category::Token; }
+		bool IsEnum() const { return GetCategory() == Category::Enum; }
+		bool IsBase() const { return GetCategory() == Category::Base; }
+		bool IsKlass() const { return GetCategory() == Category::Klass; }
+
+		bool IsStoredByRef() const 
+		{
+			auto category = GetCategory();
+			return category == Category::Base || category == Category::Klass;
+		}
+
 	private:
 		std::string name_;
 	};
@@ -50,6 +61,12 @@ namespace eds::loli
 
 		Qualifier qual;
 		TypeInfo* type;
+
+	public:
+		bool IsVector() const
+		{
+			return qual == Qualifier::Vector;
+		}
 	};
 
 	struct TokenDummyType : public TypeInfo

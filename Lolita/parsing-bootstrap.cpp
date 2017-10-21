@@ -1,4 +1,7 @@
 #include "parsing-bootstrap.h"
+#include <algorithm>
+#include <cassert>
+#include <sstream>
 
 using namespace std;
 using namespace eds::loli::config;
@@ -7,80 +10,157 @@ namespace eds::loli
 {
 	using ParserBootstrapContext = ParserBootstrapInfo::ParserBootstrapContext;
 
+	// TODO: support enum vec?
+	// TODO: refine this function, maybe map would help
 	unique_ptr<AstHandle> ConstructAstHandle(const ParserBootstrapContext& ctx, const TypeSpec& var_type, const RuleItem& item)
 	{
-		/*
-						auto gen_hendle = [&]() -> AstHandle::GenHandle {
-					if (rule_item->klass_hint)
+		bool is_vec = var_type.qual == TypeSpec::Qualifier::Vector;
+		bool is_obj = [&]() {
+			switch (var_type.type->GetCategory())
+			{
+			case TypeInfo::Category::Base:
+			case TypeInfo::Category::Klass:
+				return true;
+			default:
+				return false;
+			}
+		}() && !is_vec;
+
+		auto klass_name = var_type.type->Name();
+
+		// construct gen handle
+		//
+
+		auto gen_handle = [&]() -> AstHandle::GenHandle {
+			if (item.klass_hint)
+			{
+				// generator
+				const auto& hint = *item.klass_hint;
+
+				// enum
+				//
+
+				if (var_type.type->GetCategory() == TypeInfo::Category::Enum)
+				{
+					assert(hint.qual.empty());
+
+					auto info = reinterpret_cast<EnumInfo*>(var_type.type);
+					auto value = distance(
+						info->values.begin(),
+						find(info->values.begin(), info->values.end(), hint.name)
+					);
+
+					assert(value < info->values.size());
+					return AstEnumGen{ value };
+				}
+
+				// object or vector
+				//
+
+				// override klass name
+				klass_name = hint.name;
+
+				// make genenerator
+				if (hint.qual.empty())
+				{
+					is_obj = true;
+					return AstObjectGen{};
+				}
+				else
+				{
+					assert(hint.qual == "vec");
+					is_vec = true;
+					return AstVectorGen{};
+				}
+			}
+			else
+			{
+				// selector
+				auto it = find_if(
+					item.rhs.begin(), item.rhs.end(),
+					[](const auto& elem) { return elem.assign == "!"; }
+				);
+				assert(it != item.rhs.end());
+
+				auto index = distance(item.rhs.begin(), it);
+
+				// override klass name
+				auto symbol = ctx.symbol_lookup.at(it->symbol);
+				auto category = symbol->GetCategory();
+				if (category == SymbolInfo::Category::Variable)
+				{
+					klass_name = reinterpret_cast<VariableInfo*>(symbol)->type.type->Name();
+				}
+
+				return AstItemSelector{ index };
+			}
+		}();
+
+		// construct manip handle
+		//
+
+		auto manip_handle = [&]() -> AstHandle::ManipHandle {
+			if (is_vec)
+			{
+				vector<int> indices;
+				for (int i = 0; i < item.rhs.size(); ++i)
+				{
+					const auto& symbol = item.rhs[i];
+					if (symbol.assign == "&")
 					{
-						// gen
-						const auto& hint = *rule_item->klass_hint;
-
-						// try enum gen
-						auto enum_it = enum_lookup.find(hint.name);
-						if (enum_it != enum_lookup.end())
-						{
-							assert(hint.qual.empty());
-							return AstEnumGen{ enum_it->second };
-						}
-
-						// object or vector
-						klass_name = hint.name;
-						if (hint.qual.empty())
-						{
-							return AstObjectGen{};
-						}
-						else
-						{
-							assert(hint.qual == "vec");
-							return AstVectorGen{};
-						}
+						indices.push_back(i);
 					}
 					else
 					{
-						// selector
-						auto it = find_if(
-							rule.rhs.begin(), rule.rhs.end(),
-							[](const auto& elem) { return elem.assign == "!"; }
-						);
-
-						assert(it != rule.rhs.end());
-						return AstItemSelector{ distance(rule.rhs.begin(), it) };
+						assert(symbol.assign.empty() || symbol.assign == "!");
 					}
-				}();
+				}
 
-				// construct manip handle
-				//
+				if (indices.empty())
+				{
+					return AstManipPlaceholder{};
+				}
+				else
+				{
+					return AstVectorMerger{ move(indices) };
+				}
+			}
+			else if (is_obj)
+			{
+				vector<AstObjectSetter::SetterPair> setters;
+				for (int i = 0; i < item.rhs.size(); ++i)
+				{
+					const auto& info = *dynamic_cast<KlassInfo*>(ctx.type_lookup.at(klass_name));
+					const auto& symbol = item.rhs[i];
 
-				auto manip_handle = [&]() -> AstHandle::ManipHandle {
-					bool vec, bool obj;
-					if (vec)
+					if (!symbol.assign.empty() && symbol.assign != "!")
 					{
-						vector<int> indices;
-						for (int i = 0; i < rule.rhs.size(); ++i)
-						{
-							const auto& item = rule.rhs[i];
-							if (item.assign == "&")
-							{
-								indices.push_back(i);
-							}
-							else
-							{
-								assert(item.assign.empty());
-							}
-						}
-
-						return AstVectorMerger{ indices };
+						auto it = find_if(info.members.begin(), info.members.end(),
+										  [&](const KlassInfo::Member& mem) { return mem.name == symbol.assign; });
+						assert(it != info.members.end());
+						
+						auto codinal = distance(info.members.begin(), it);
+						setters.push_back({ codinal, i });
 					}
-					else if (obj)
-					{
+				}
 
-					}
-				};
+				if (setters.empty())
+				{
+					return AstManipPlaceholder{};
+				}
+				else
+				{
+					return AstObjectSetter{ move(setters) };
+				}
+			}
+			else // enum
+			{
+				// do nothing
+				return AstManipPlaceholder{};
+			}
+		}();
 
-		*/
-		// TODO: finish this
-		return nullptr;
+		return make_unique<AstHandle>(move(klass_name), move(gen_handle), move(manip_handle));
 	}
 
 	void LoadTypeInfo(ParserBootstrapContext& ctx, const Config& config)

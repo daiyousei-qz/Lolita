@@ -6,6 +6,12 @@
 
 namespace eds::loli
 {
+	template <typename T>
+	struct ParsingResult
+	{
+		std::unique_ptr<Arena> arena;
+	};
+
 	class Parser
 	{
 	public:
@@ -18,8 +24,8 @@ namespace eds::loli
 		}
 
 	private:
-		std::unique_ptr<ParserBootstrapInfo> i_; // loaded from deserialized data
-		std::unique_ptr<AstTraitManager> m_; // loaded from generated code
-		std::unique_ptr<ParsingTable> t_; // runtime generated
+		std::unique_ptr<ParserBootstrapInfo> info_; // loaded from config file
+		std::unique_ptr<AstTraitManager> traits_; // loaded from generated code
+		std::unique_ptr<ParsingTable> table_; // runtime generated
 	};
 }

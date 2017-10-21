@@ -71,6 +71,15 @@
     <ClInclude Include="debug.h">
       <Filter>Debug</Filter>
     </ClInclude>
+    <ClInclude Include="ast-include.h">
+      <Filter>Info</Filter>
+    </ClInclude>
+    <ClInclude Include="calc.h">
+      <Filter>Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="calc2.h">
+      <Filter>Debug</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
@@ -102,6 +111,9 @@
     </ClCompile>
     <ClCompile Include="debug.cpp">
       <Filter>Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="parser.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

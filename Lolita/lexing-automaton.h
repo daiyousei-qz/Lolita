@@ -56,6 +56,6 @@ namespace eds::loli::lexing
 		std::vector<std::unique_ptr<DfaState>> states_;
 	};
 
-	std::unique_ptr<const LexingAutomaton> BuildLexingAutomaton(const std::vector<std::string>& regex);
+	std::unique_ptr<const LexingAutomaton> BuildDfaAutomaton(const std::vector<std::string>& regex);
 	std::unique_ptr<const LexingAutomaton> OptimizeLexingAutomaton(const LexingAutomaton& atm);
 }

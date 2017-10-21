@@ -1,4 +1,5 @@
 #include "config.h"
+#include "text\format.hpp"
 #include "text\text-utils.hpp"
 
 using namespace std;
@@ -6,11 +7,37 @@ using namespace eds::text;
 
 namespace eds::loli::config
 {
+	struct ConfigParsingException : runtime_error
+	{
+		const char* pos;
+		
+	public:
+		ConfigParsingException(const char* pos, const string& msg)
+			: runtime_error(msg), pos(pos) { }
+	};
+
 	void SkipWhitespace(zstring& s, bool toggle = true)
 	{
 		if (!toggle) return;
 
-		while (*s && ConsumeIfAny(s, " \r\n\t")) {}
+		bool have_ws = true;
+		while (have_ws)
+		{
+			have_ws = false;
+
+			if (*s == '#')
+			{
+				while (*s && *s != '\n') 
+					Consume(s);
+
+				have_ws = true;
+			}
+
+			while (*s && ConsumeIfAny(s, " \r\n\t"))
+			{
+				have_ws = true;
+			}
+		}
 	}
 
 	bool TryParseConstant(zstring& s, const char* text, bool skip_ws = true)
@@ -26,7 +53,7 @@ namespace eds::loli::config
 		// expecting constant
 		if (!ConsumeIfSeq(s, text))
 		{
-			throw 0;
+			throw ConfigParsingException{ s, Format("expecting {}", text) };
 		}
 	}
 
@@ -37,7 +64,7 @@ namespace eds::loli::config
 		// expecting letter
 		if (!isalpha(*s))
 		{
-			throw 0;
+			throw ConfigParsingException{ s, "expecting <identifier>" };
 		}
 
 		string buf;
@@ -56,7 +83,7 @@ namespace eds::loli::config
 		// expecting string
 		if (!ConsumeIf(s, '"'))
 		{
-			throw 0;
+			throw ConfigParsingException{ s, "expecting <string>" };
 		}
 
 		string buf{ '"' };
@@ -81,7 +108,7 @@ namespace eds::loli::config
 		}
 
 		// unexpected eof
-		throw 0;
+		throw ConfigParsingException{ s, "unexpected <eof>" };
 	}
 
 	QualType ParseTypeSpec(zstring& s)

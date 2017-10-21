@@ -1,0 +1,270 @@
+
+# ===================================================
+# Symbols
+#
+
+token s_assign = "=";
+token s_semi = ";";
+
+token s_asterisk = "\*";
+token s_slash = "/";
+token s_modulus = "%";
+token s_plus = "\+";
+token s_minus = "-";
+token s_amp = "&";
+token s_bar = "\|";
+token s_caret = "^";
+
+token s_gt = ">";
+token s_gteq = ">=";
+token s_ls = "<";
+token s_lseq = "<=";
+token s_eq = "==";
+token s_neq = "!=";
+
+token s_ampamp = "&&";
+token s_barbar = "\|\|";
+
+token s_lp = "\(";
+token s_rp = "\)";
+token s_lb = "{";
+token s_rb = "}";
+
+# ===================================================
+# Keywords
+#
+
+
+#token k_val = "val";
+#token k_var = "var";
+token k_let = "let";
+token k_if = "if";
+token k_else = "else";
+token k_while = "while";
+token k_break = "break";
+token k_continue = "continue";
+
+token k_true = "true";
+token k_false = "false";
+
+token k_bool = "bool";
+token k_int = "int";
+
+# ===================================================
+# Component
+#
+token id = "[_a-zA-Z][_a-zA-Z0-9]*";
+token l_int = "[0-9]+";
+
+# ===================================================
+# Ignore
+#
+
+ignore whitespace = "[ \t\r\n]+";
+
+# ===================================================
+# Literal
+#
+
+base Literal;
+
+enum BoolValue
+{ True; False; }
+
+node BoolLiteral : Literal
+{ BoolValue content; }
+
+node IntLiteral : Literal
+{ token content; }
+
+rule BoolValue : BoolValue
+    = k_true -> True
+    = k_false -> False
+    ;
+
+rule BoolLiteral : BoolLiteral
+    = BoolValue:content -> BoolLiteral
+    ;
+
+rule IntLiteral : IntLiteral
+    = l_int:content -> IntLiteral
+    ;
+
+# ===================================================
+# Expression
+#
+
+base Expression;
+
+enum BinaryOp
+{
+    # multiplicative
+    Asterisk; Slash; Modulus;
+
+    # additive
+    Plus; Minus;
+    
+    # bitwise op
+    And; Or; Xor;
+
+    # comparative
+    Gt; GtEq; Ls; LsEq; Eq; NotEq;
+
+    # logic composition
+    LogicAnd; LogicOr;
+}
+
+rule MultiplicativeOp : BinaryOp
+    = s_asterisk -> Asterisk
+    = s_slash -> Slash
+    = s_modulus -> Modulus
+    ;
+rule AdditiveOp : BinaryOp
+    = s_plus -> Plus
+    = s_minus -> Minus
+    ;
+rule BitwiseManipOp : BinaryOp
+    = s_amp -> And
+    = s_bar -> Or
+    = s_caret -> Xor
+    ;
+rule ComparativeOp : BinaryOp
+    = s_gt -> Gt
+    = s_gteq -> GtEq
+    = s_ls -> Ls
+    = s_lseq -> LsEq
+    = s_eq -> Eq
+    = s_neq -> NotEq
+    ;
+rule LogicCompositionOp : BinaryOp
+    = s_ampamp -> LogicAnd
+    = s_barbar -> LogicOr
+    ;
+
+node BinaryExpr : Expression
+{
+    BinaryOp op;
+    Expression lhs;
+    Expression rhs;
+}
+node NamedExpr : Expression
+{
+    token id;
+}
+node LiteralExpr : Expression
+{
+    Literal content;
+}
+
+rule Factor : Expression
+    = IntLiteral:content -> LiteralExpr
+    = BoolLiteral:content -> LiteralExpr
+    = id:id -> NamedExpr
+    = s_lp Expr! s_rp
+    ;
+rule MultiplicativeExpr : BinaryExpr
+    = MultiplicativeExpr:lhs MultiplicativeOp:op Factor:rhs -> BinaryExpr
+    = Factor!
+    ;
+rule AdditiveExpr : BinaryExpr
+    = AdditiveExpr:lhs AdditiveOp:op MultiplicativeExpr:rhs -> BinaryExpr
+    = MultiplicativeExpr!
+    ;
+rule BitwiseManipExpr : BinaryExpr
+    = BitwiseManipExpr:lhs BitwiseManipOp:op AdditiveExpr:rhs -> BinaryExpr
+    = AdditiveExpr!
+    ;
+rule ComparativeExpr : BinaryExpr
+    = ComparativeExpr:lhs ComparativeOp:op BitwiseManipExpr:rhs -> BinaryExpr
+    = BitwiseManipExpr!
+    ;
+rule LogicCompositionExpr : BinaryExpr
+    = LogicCompositionExpr:lhs LogicCompositionOp:op ComparativeExpr:rhs -> BinaryExpr
+    = ComparativeExpr!
+    ;
+
+rule Expr : Expression
+    = LogicCompositionExpr!
+    ;
+
+# ===================================================
+# Statement
+#
+
+base Statement;
+
+enum JumpCommand
+{
+    Break; Continue;
+}
+rule JumpCommand : JumpCommand
+    = k_break -> Break
+    = k_continue -> Continue
+    ;
+
+rule Stmt : Statement
+    = LetStmt!
+    = JumpStmt!
+    = WhileStmt!
+    = IfElseStmt!
+    = CompoundStmt!
+    ;
+
+node LetStmt : Statement
+{
+    token name;
+    Expression value;
+}
+rule LetStmt : LetStmt
+    = k_let id:name s_assign Expr:value s_semi -> LetStmt
+    ;
+
+node JumpStmt : Statement
+{
+    JumpCommand command;
+}
+rule JumpStmt : JumpStmt
+    = JumpCommand:command s_semi -> JumpStmt
+    ;
+
+node WhileStmt : Statement
+{
+    Expression pred;
+    Statement body;
+}
+rule WhileStmt : WhileStmt
+    = k_while s_lp Expr:pred s_rp Stmt:body -> WhileStmt
+    ;
+
+node IfElseStmt : Statement
+{
+    Expression pred;
+    Statement positive;
+    Statement negative;
+}
+rule IfElseStmt : IfElseStmt
+    = k_if s_lp Expr:pred s_rp Stmt:positive k_else Stmt:negative -> IfElseStmt
+    ;
+
+node CompoundStmt : Statement
+{
+    Statement'vec children;
+}
+rule StmtList : Statement'vec
+    = Stmt& -> Statement'vec
+    = StmtList! Stmt&
+    ;
+rule EmptyCompoundList : Statement'vec
+    = s_lb s_rb -> Statement'vec
+    ;
+rule CompoundStmt : CompoundStmt
+    = s_lb StmtList:children s_rb -> CompoundStmt
+    = EmptyCompoundList:children -> CompoundStmt
+    ;
+
+# ===================================================
+# Global Symbol
+#
+rule GlobalSymbol : Expression
+    = Stmt!
+    ;
