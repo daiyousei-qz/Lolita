@@ -13,8 +13,8 @@ namespace eds::loli::config
 
 	struct QualType
 	{
-		std::string name;
-		std::string qual;
+		std::string name; // id
+		std::string qual; // "" or "vec"
 	};
 
 	// Token
@@ -22,8 +22,8 @@ namespace eds::loli::config
 
 	struct TokenDefinition
 	{
-		std::string name;
-		std::string regex;
+		std::string name; // id
+		std::string regex; // "regex" QUOTED
 	};
 
 	// Enum
@@ -31,8 +31,8 @@ namespace eds::loli::config
 
 	struct EnumDefinition
 	{
-		std::string name;
-		std::vector<std::string> choices;
+		std::string name; // id
+		std::vector<std::string> choices; // id
 	};
 
 	// Node
@@ -40,19 +40,19 @@ namespace eds::loli::config
 
 	struct BaseDefinition
 	{
-		std::string name;
+		std::string name; // id
 	};
 
 	struct NodeMember
 	{
 		QualType type;
-		std::string name;
+		std::string name; // id
 	};
 
 	struct NodeDefinition
 	{
-		std::string name;
-		std::string parent;
+		std::string name; // id
+		std::string parent; // ""
 
 		std::vector<NodeMember> members;
 	};
@@ -62,8 +62,8 @@ namespace eds::loli::config
 
 	struct RuleSymbol
 	{
-		std::string symbol;
-		std::string assign;
+		std::string symbol; // id
+		std::string assign; // & or ! or id
 	};
 	struct RuleItem
 	{

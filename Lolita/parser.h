@@ -10,6 +10,7 @@ namespace eds::loli
 	struct ParsingResult
 	{
 		std::unique_ptr<Arena> arena;
+
 	};
 
 	class Parser
@@ -28,4 +29,6 @@ namespace eds::loli
 		std::unique_ptr<AstTraitManager> traits_; // loaded from generated code
 		std::unique_ptr<ParsingTable> table_; // runtime generated
 	};
+
+	std::string GenerateDataBinding(const ParserBootstrapInfo& info);
 }

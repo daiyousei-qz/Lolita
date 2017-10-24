@@ -1,4 +1,5 @@
 #include "config.h"
+#include "basic.h"
 #include "text\format.hpp"
 #include "text\text-utils.hpp"
 
@@ -7,12 +8,12 @@ using namespace eds::text;
 
 namespace eds::loli::config
 {
-	struct ConfigParsingException : runtime_error
+	struct ConfigParsingError : runtime_error
 	{
 		const char* pos;
 		
 	public:
-		ConfigParsingException(const char* pos, const string& msg)
+		ConfigParsingError(const char* pos, const string& msg)
 			: runtime_error(msg), pos(pos) { }
 	};
 
@@ -53,7 +54,7 @@ namespace eds::loli::config
 		// expecting constant
 		if (!ConsumeIfSeq(s, text))
 		{
-			throw ConfigParsingException{ s, Format("expecting {}", text) };
+			throw ConfigParsingError{ s, Format("expecting {}", text) };
 		}
 	}
 
@@ -64,7 +65,7 @@ namespace eds::loli::config
 		// expecting letter
 		if (!isalpha(*s))
 		{
-			throw ConfigParsingException{ s, "expecting <identifier>" };
+			throw ConfigParsingError{ s, "expecting <identifier>" };
 		}
 
 		string buf;
@@ -83,7 +84,7 @@ namespace eds::loli::config
 		// expecting string
 		if (!ConsumeIf(s, '"'))
 		{
-			throw ConfigParsingException{ s, "expecting <string>" };
+			throw ConfigParsingError{ s, "expecting <string>" };
 		}
 
 		string buf{ '"' };
@@ -108,7 +109,7 @@ namespace eds::loli::config
 		}
 
 		// unexpected eof
-		throw ConfigParsingException{ s, "unexpected <eof>" };
+		throw ConfigParsingError{ s, "unexpected <eof>" };
 	}
 
 	QualType ParseTypeSpec(zstring& s)
@@ -288,7 +289,7 @@ namespace eds::loli::config
 			}
 			else
 			{
-				throw 0;
+				throw ConfigParsingError{ s, "unexpected token" };
 			}
 
 			SkipWhitespace(s);
@@ -298,10 +299,19 @@ namespace eds::loli::config
 	unique_ptr<Config> ParseConfig(const char* data)
 	{
 		auto result = make_unique<Config>();
-		auto p = data;
 
-		// TODO: add error report
-		ParseConfigInternal(*result, p);
+		try
+		{
+			auto p = data;
+			ParseConfigInternal(*result, p);
+		}
+		catch (const ConfigParsingError& err)
+		{
+			auto around_text = string{ err.pos }.substr(0, 20);
+			throw ParserConstructionError{
+				Format("Failed parsing config file:{} at around \"{}\".", err.what(), around_text)
+			};
+		}
 
 		return result;
 	}

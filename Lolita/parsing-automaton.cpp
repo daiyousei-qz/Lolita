@@ -15,7 +15,6 @@ namespace eds::loli::parsing
 	// Implmentation of ParsingAutomaton
 	//
 
-
 	// by convention, if production is set nullptr
 	// it's an imaginary root production
 	struct ParsingItem
@@ -87,6 +86,12 @@ namespace eds::loli::parsing
 
 	using ItemSet = FlatSet<ParsingItem>;
 
+	struct BasicLRAutomaton
+	{
+		std::unique_ptr<ParsingAutomaton> pda;
+		map<ItemSet, ParsingState*> state_lookup;
+	};
+
 	// Expands state of kernal items into its closure
 	// that includes all of non-kernal items as well,
 	// and then enumerate items with a callback
@@ -143,7 +148,6 @@ namespace eds::loli::parsing
 		}
 	}
 
-	// TODO: directly generate vector
 	// claculate target state from a source state with a particular symbol s
 	// and enumerate its items with a callback
 	ItemSet GenerateGotoItems(const Grammar& g, const ItemSet& src, const Symbol* s)
@@ -234,7 +238,7 @@ namespace eds::loli::parsing
 			});
 		}
 
-		return make_tuple(move(pda), move(state_lookup));
+		return BasicLRAutomaton{ move(pda), move(state_lookup) };
 	}
 
 	unique_ptr<const ParsingAutomaton> BuildSLRAutomaton(const Grammar& g)
@@ -274,5 +278,105 @@ namespace eds::loli::parsing
 		}
 
 		return move(atm);
+	}
+
+	// LALR
+	//
+
+	unique_ptr<Grammar> ExtendGrammar(const Grammar& old_grammar, const ParsingAutomaton& atm)
+	{
+		auto ext_grammar = make_unique<Grammar>();
+
+		const auto state_count = atm.StateCount();
+		const auto term_count = old_grammar.TerminalCount();
+		const auto nonterm_count = old_grammar.NonterminalCount();
+
+		for (int i = 0; i < atm.StateCount(); ++i)
+		{
+			const auto& state = atm.LookupState(i);
+
+			// extend nonterms
+			for (const auto& goto_edge : state->goto_map)
+			{
+				auto id = goto_edge.first->id;
+				auto version = goto_edge.second->id;
+
+				ext_grammar->NewNonterm(id, version);
+			}
+
+			// extend terms
+			for (const auto& action_edge : state->action_map)
+			{
+				auto id = action_edge.first->id;
+				auto version = get<const ActionShift>(action_edge.second).target->id;
+
+				ext_grammar->NewTerm(id, version);
+			}
+		}
+
+		// extend productions
+		int initial_state;
+		for (auto i = 0; i < atm.StateCount(); ++i) // state
+		{
+			EnumerateClosureItems(old_grammar, atm.LookupState(i), [&](ParsingItem item) {
+
+				// we are only interested in non-kernel items(including intial state)
+				// to avoid repetition
+				if (item.cursor != 0) return;
+
+				// we process start symbol(ROOT) differently
+				// if(item.production)
+				// if (item.production == &old_grammar.RootProduction())
+				// {
+				//		initial_state = i;
+				//		return;
+				// }
+
+				// map left-hand side
+				auto lhs = ext_grammar->LookupTerminal(item.production->lhs->id, i);
+
+				// map right-hand side
+				std::vector<const Symbol*> rhs;
+
+				auto cur_state = i;
+				for (auto rhs_elem : item.production->rhs)
+				{
+					auto target_state = -1; // TODO:
+					assert(target_state != -1);
+
+					if (rhs_elem->AsTerminal())
+					{
+						rhs.push_back(
+							ext_grammar->LookupTerminal(rhs_elem->id, cur_state)
+						);
+					}
+					else
+					{
+						rhs.push_back(
+							ext_grammar->LookupNonterminal(rhs_elem->id, cur_state)
+						);
+					}
+
+					cur_state = target_state;
+				}
+
+				// create production
+				const auto& mapped_production = ext_grammar->NewProduction(lhs, rhs);
+
+				result.production_reg_lookup.push_back({ item.production->Id(), cur_state });
+			});
+		}
+
+		auto raw_top = old_grammar.RootProduction().Right().front().AsNonTerminal();
+		auto mapped_top = nonterm_lookup.at(make_pair(raw_top, initial_state));
+
+		result.ext_grammar = ext_builder.Build(mapped_top);
+
+		return result;
+	}
+
+	unique_ptr<const ParsingAutomaton> BuildLALRAutomaton(const Grammar& g)
+	{
+
 	}
 }

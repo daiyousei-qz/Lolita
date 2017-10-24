@@ -90,4 +90,5 @@ namespace eds::loli::parsing
 	};
 
 	std::unique_ptr<const ParsingAutomaton> BuildSLRAutomaton(const Grammar& g);
+	std::unique_ptr<const ParsingAutomaton> BuildLALRAutomaton(const Grammar& g);
 }

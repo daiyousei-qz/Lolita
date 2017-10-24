@@ -73,7 +73,7 @@ namespace eds::loli::parsing
 			return productions_.size();
 		}
 
-		Nonterminal* RootSymbol() const
+		const Nonterminal* RootSymbol() const
 		{
 			return root_symbol_;
 		}
@@ -89,6 +89,15 @@ namespace eds::loli::parsing
 		const auto& Grammar::Productions() const
 		{
 			return productions_;
+		}
+
+		const Terminal* LookupTerminal(int id, int version = 0)
+		{
+			throw 0;
+		}
+		const Nonterminal* LookupNonterminal(int id, int version = 0)
+		{
+			throw 0;
 		}
 
 		void ConfigureRootSymbol(Nonterminal* s);

@@ -8,7 +8,22 @@ using namespace eds::loli::config;
 
 namespace eds::loli
 {
+	using TypeInfoMap = ParserBootstrapInfo::TypeInfoMap;
+	using SymbolInfoMap = ParserBootstrapInfo::SymbolInfoMap;
 	using ParserBootstrapContext = ParserBootstrapInfo::ParserBootstrapContext;
+
+	void RegisterTypeInfo(TypeInfoMap& lookup, TypeInfo* info)
+	{
+		assert(lookup.count(info->Name()) == 0);
+
+		lookup[info->Name()] = info;
+	}
+	void RegisterSymbolInfo(SymbolInfoMap& lookup, SymbolInfo* info)
+	{
+		assert(lookup.count(info->Name()) == 0);
+
+		lookup[info->Name()] = info;
+	}
 
 	// TODO: support enum vec?
 	// TODO: refine this function, maybe map would help
@@ -173,34 +188,37 @@ namespace eds::loli
 		auto& bases = ctx.bases;
 		auto& klasses = ctx.klasses;
 
-		// init type_lookup
+		// init containers
+		//
 		type_lookup.insert_or_assign("token", &TokenDummyType::Instance());
 
-		// copy enum definitions
 		enums.reserve(config.enums.size());
+		bases.reserve(config.bases.size());
+		klasses.reserve(config.nodes.size());
+
+		// copy enum definitions
 		for (const auto& enum_def : config.enums)
 		{
 			auto& info = enums.emplace_back(enum_def.name);
 			info.values = enum_def.choices;
 
-			type_lookup.insert_or_assign(enum_def.name, &info);
+			RegisterTypeInfo(type_lookup, &info);
 		}
 		// copy base definitions
-		bases.reserve(config.bases.size());
 		for (const auto& base_def : config.bases)
 		{
 			auto& info = bases.emplace_back(base_def.name);
 
-			type_lookup.insert_or_assign(base_def.name, &info);
+			RegisterTypeInfo(type_lookup, &info);
 		}
 		// copy klass definitions(stage one: name only)
-		klasses.reserve(config.nodes.size());
 		for (const auto& klass_def : config.nodes)
 		{
 			auto& info = klasses.emplace_back(klass_def.name);
 
-			type_lookup.insert_or_assign(klass_def.name, &info);
+			RegisterTypeInfo(type_lookup, &info);
 		}
+
 		// copy klass definitions(stage two: detailed information)
 		for (int i = 0; i < klasses.size(); ++i)
 		{
@@ -210,7 +228,7 @@ namespace eds::loli
 			if (!def.parent.empty())
 			{
 				auto base = type_lookup.at(def.parent);
-				assert(base->GetCategory() == TypeInfo::Category::Base);
+				assert(base->IsBase());
 
 				info.base = reinterpret_cast<BaseInfo*>(base);
 			}
@@ -250,8 +268,7 @@ namespace eds::loli
 			auto& info = tokens.emplace_back(tok_def.name);
 			info.regex = tok_def.regex;
 
-			symbol_lookup.insert_or_assign(tok_def.name, &info);
-			symbol_lookup.insert_or_assign(tok_def.regex, &info);
+			RegisterSymbolInfo(symbol_lookup, &info);
 		}
 		ignored_tokens.reserve(config.ignored_tokens.size());
 		for (const auto& tok_def : config.ignored_tokens)
@@ -259,6 +276,7 @@ namespace eds::loli
 			auto& info = ignored_tokens.emplace_back(tok_def.name);
 			info.regex = tok_def.regex;
 
+			// TODO: what if ignored tokens have name conflict
 			// NOTE ignored tokens are not allowed to be used
 			// so don't make it into symbol lookup
 		}
@@ -275,7 +293,7 @@ namespace eds::loli
 			info.type.type = ctx.type_lookup.at(rule_def.type.name);
 			info.type.qual = rule_def.type.qual == "vec" ? TypeSpec::Qualifier::Vector : TypeSpec::Qualifier::None;
 
-			symbol_lookup.insert_or_assign(rule_def.lhs, &info);
+			RegisterSymbolInfo(symbol_lookup, &info);
 		}
 
 		// copy productions
@@ -283,6 +301,7 @@ namespace eds::loli
 		for (const auto& rule_def : config.rules)
 		{
 			auto lhs = dynamic_cast<VariableInfo*>(symbol_lookup.at(rule_def.lhs));
+			assert(lhs != nullptr);
 
 			for (const auto& rule_item : rule_def.items)
 			{

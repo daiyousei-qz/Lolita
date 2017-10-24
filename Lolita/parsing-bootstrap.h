@@ -38,10 +38,11 @@ namespace eds::loli
 		virtual Category GetCategory() const = 0;
 
 		bool IsToken() const { return GetCategory() == Category::Token; }
-		bool IsEnum() const { return GetCategory() == Category::Enum; }
-		bool IsBase() const { return GetCategory() == Category::Base; }
+		bool IsEnum()  const { return GetCategory() == Category::Enum; }
+		bool IsBase()  const { return GetCategory() == Category::Base; }
 		bool IsKlass() const { return GetCategory() == Category::Klass; }
 
+		// stored as pointer in AST
 		bool IsStoredByRef() const 
 		{
 			auto category = GetCategory();
@@ -154,6 +155,9 @@ namespace eds::loli
 
 		virtual Category GetCategory() const = 0;
 
+		bool IsToken()    const { return GetCategory() == Category::Token; }
+		bool IsVariable() const { return GetCategory() == Category::Variable; }
+
 	private:
 		std::string name_;
 	};
@@ -175,7 +179,7 @@ namespace eds::loli
 	struct VariableInfo : public SymbolInfo
 	{
 		TypeSpec type;
-		std::vector<ProductionInfo*> productions;
+		std::vector<const ProductionInfo*> productions;
 
 	public:
 		VariableInfo(const std::string& name)
@@ -201,14 +205,17 @@ namespace eds::loli
 	class ParserBootstrapInfo
 	{
 	public:
+		using TypeInfoMap = std::unordered_map<std::string, TypeInfo*>;
+		using SymbolInfoMap = std::unordered_map<std::string, SymbolInfo*>;
+
 		struct ParserBootstrapContext
 		{
-			std::unordered_map<std::string, TypeInfo*> type_lookup;
+			TypeInfoMap type_lookup;
 			std::vector<EnumInfo> enums;
 			std::vector<BaseInfo> bases;
 			std::vector<KlassInfo> klasses;
 
-			std::unordered_map<std::string, SymbolInfo*> symbol_lookup;
+			SymbolInfoMap symbol_lookup;
 			std::vector<TokenInfo> tokens;
 			std::vector<TokenInfo> ignored_tokens;
 			std::vector<VariableInfo> variables;
