@@ -1,0 +1,56 @@
+ignore whitespace = "[ \t\r\n]+";
+token int = "[0-9]+";
+token op_add = "\+";
+token op_minus = "-";
+token op_asterisk = "\*";
+token op_slash = "/";
+token lp = "\(";
+token rp = "\)";
+token comma = ",";
+
+enum BinaryOp { Plus; Minus; Asterisk; Slash; }
+
+base Expression;
+
+node LiteralExpression : Expression
+{
+    token value;
+}
+
+node BinaryExpression : Expression
+{
+    Expression lhs;
+    BinaryOp op;
+    Expression rhs;
+}
+
+rule AddOp : BinaryOp
+    = "\+" -> Plus
+    = "-" -> Minus
+    ;
+rule MulOp : BinaryOp
+    = "\*" -> Asterisk
+    = "/" -> Slash
+    ;
+
+rule Factor : Expression
+    = int:value -> LiteralExpression
+    = lp Expr! rp
+    ;
+rule MulExpr : Expression
+    = MulExpr:lhs MulOp:op Factor:rhs -> BinaryExpression
+    = Factor!
+    ;
+rule AddExpr : Expression
+    = AddExpr:lhs AddOp:op MulExpr:rhs -> BinaryExpression
+    = MulExpr!
+    ;
+
+rule Expr : Expression
+    = AddExpr!
+    ;
+
+rule ExprList : Expression'vec
+    = Expr& -> Expression'vec
+    = ExprList! comma Expr&
+    ;

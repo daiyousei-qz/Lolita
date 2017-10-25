@@ -8,7 +8,7 @@ namespace eds::loli::parsing
 	using TermSet = PredictiveInfo::TermSet;
 
 	// try to insert FIRST SET of s into output
-	static bool TryInsertFIRST(const PredictiveSet& lookup, TermSet& output, Symbol* s)
+	static bool TryInsertFIRST(const PredictiveSet& lookup, TermSet& output, const Symbol* s)
 	{
 		// remember output's size
 		const auto old_output_sz = output.size();
@@ -29,7 +29,7 @@ namespace eds::loli::parsing
 	}
 
 	// try to insert FOLLOW SET of s into output
-	static bool TryInsertFOLLOW(const PredictiveSet& lookup, TermSet& output, Nonterminal* s)
+	static bool TryInsertFOLLOW(const PredictiveSet& lookup, TermSet& output, const Nonterminal* s)
 	{
 		// remember output's size
 		const auto old_output_sz = output.size();

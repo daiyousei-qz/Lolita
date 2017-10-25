@@ -8,12 +8,12 @@
 
 namespace eds::loli
 {
-	struct TypeInfo;
+	class TypeInfo;
 	struct EnumInfo;
 	struct BaseInfo;
 	struct KlassInfo;
 
-	struct SymbolInfo;
+	class SymbolInfo;
 	struct TokenInfo;
 	struct VariableInfo;
 
@@ -244,10 +244,10 @@ namespace eds::loli
 		}
 
 	private:
-		friend std::unique_ptr<ParserBootstrapInfo> BootstrapParser(const config::Config& config);
+		friend std::unique_ptr<ParserBootstrapInfo> BootstrapParser(const config::ParsingConfiguration&);
 
 		ParserBootstrapContext ctx_;
 	};
 
-	std::unique_ptr<ParserBootstrapInfo> BootstrapParser(const config::Config& config);
+	std::unique_ptr<ParserBootstrapInfo> BootstrapParser(const config::ParsingConfiguration& config);
 }

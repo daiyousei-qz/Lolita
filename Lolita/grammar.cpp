@@ -43,11 +43,11 @@ namespace eds::loli::parsing
 		return &nonterms_.emplace_back(id, version);
 	}
 
-	Production* Grammar::NewProduction(int id, Nonterminal* lhs, const vector<Symbol*>& rhs)
+	Production* Grammar::NewProduction(int id, Nonterminal* lhs, const vector<const Symbol*>& rhs, int version)
 	{
 		assert(!rhs.empty());
 
-		auto result = &productions_.emplace_back(id, lhs, rhs);
+		auto result = &productions_.emplace_back(id, lhs, rhs, version);
 		lhs->productions.push_back(result);
 
 		return result;

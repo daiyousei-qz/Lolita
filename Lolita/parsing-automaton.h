@@ -14,7 +14,7 @@ namespace eds::loli::parsing
 	// Parsing Actions
 	//
 
-	class ParsingState;
+	struct ParsingState;
 
 	struct ActionShift
 	{

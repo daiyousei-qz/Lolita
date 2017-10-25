@@ -280,7 +280,7 @@ void foo()
 {
 	auto s = LoadConfigText();
 
-	auto config = config::ParseConfig(s.c_str());
+	auto config = config::LoadConfig(s.c_str());
 	auto parsing_info = BootstrapParser(*config);
 	auto parsing_table = CreateParsingTable(*parsing_info);
 

@@ -46,12 +46,14 @@ namespace eds::loli::parsing
 	struct Production
 	{
 		int id;
-		Nonterminal* lhs;
-		std::vector<Symbol*> rhs;
+		int version;
+
+		const Nonterminal* lhs;
+		std::vector<const Symbol*> rhs;
 
 	public:
-		Production(int id, Nonterminal* lhs, const std::vector<Symbol*>& rhs)
-			: id(id), lhs(lhs), rhs(rhs) { }
+		Production(int id, const Nonterminal* lhs, const std::vector<const Symbol*>& rhs, int version)
+			: id(id), lhs(lhs), rhs(rhs), version(version) { }
 	};
 
 	class Grammar
@@ -90,21 +92,44 @@ namespace eds::loli::parsing
 		{
 			return productions_;
 		}
+		const Terminal* LookupTerminal(int id, int version = 0) const
+		{
+			{
+				const auto& attempt = terms_[id];
+				if (attempt.id == id && attempt.version == version)
+					return &attempt;
+			}
 
-		const Terminal* LookupTerminal(int id, int version = 0)
-		{
-			throw 0;
+			for (const auto& term : terms_)
+			{
+				if (term.id == id && term.version == version)
+					return &term;
+			}
+
+			return nullptr;
 		}
-		const Nonterminal* LookupNonterminal(int id, int version = 0)
+		const Nonterminal* LookupNonterminal(int id, int version = 0) const
 		{
-			throw 0;
+			{
+				const auto& attempt = nonterms_[id];
+				if (attempt.id == id && attempt.version == version)
+					return &attempt;
+			}
+
+			for (const auto& nonterm : nonterms_)
+			{
+				if (nonterm.id == id && nonterm.version == version)
+					return &nonterm;
+			}
+
+			return nullptr;
 		}
 
 		void ConfigureRootSymbol(Nonterminal* s);
 
 		Terminal* NewTerm(int id, int version = 0);
 		Nonterminal* NewNonterm(int id, int version = 0);
-		Production* NewProduction(int id, Nonterminal* lhs, const std::vector<Symbol*>& rhs);
+		Production* NewProduction(int id, Nonterminal* lhs, const std::vector<const Symbol*>& rhs, int version = 0);
 
 	private:
 		Nonterminal* root_symbol_;

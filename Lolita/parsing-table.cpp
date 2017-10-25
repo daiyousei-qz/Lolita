@@ -136,7 +136,7 @@ namespace eds::loli
 			const auto& p = info.Productions()[id];
 
 			auto lhs = symbol_lookup[p.lhs]->AsNonterminal();
-			auto rhs = vector<Symbol*>{};
+			auto rhs = vector<const Symbol*>{};
 
 			for (auto elem : p.rhs)
 				rhs.push_back(symbol_lookup[elem]);
@@ -162,7 +162,7 @@ namespace eds::loli
 
 		// TODO: deal with the mess
 		auto grammar = ConstructParsingGrammar(info);
-		auto pda = parsing::BuildSLRAutomaton(grammar);
+		auto pda = parsing::BuildLALRAutomaton(grammar);
 
 		return make_unique<ParsingTable>(info, *dfa, *pda);
 	}

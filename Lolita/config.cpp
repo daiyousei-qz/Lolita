@@ -124,7 +124,7 @@ namespace eds::loli::config
 		return QualType{ move(type), move(qual) };
 	}
 
-	void ParseTokenDefinition(Config& config, zstring& s, bool ignore)
+	void ParseTokenDefinition(ParsingConfiguration& config, zstring& s, bool ignore)
 	{
 		auto name = ParseIdentifier(s);
 		ParseConstant(s, "=");
@@ -137,7 +137,7 @@ namespace eds::loli::config
 		);
 	}
 
-	void ParseEnumDefinition(Config& config, zstring& s)
+	void ParseEnumDefinition(ParsingConfiguration& config, zstring& s)
 	{
 		auto name = ParseIdentifier(s);
 		ParseConstant(s, "{");
@@ -154,7 +154,7 @@ namespace eds::loli::config
 		);
 	}
 
-	void ParseBaseDefinition(Config& config, zstring& s)
+	void ParseBaseDefinition(ParsingConfiguration& config, zstring& s)
 	{
 		auto name = ParseIdentifier(s);
 		ParseConstant(s, ";");
@@ -164,7 +164,7 @@ namespace eds::loli::config
 		);
 	}
 
-	void ParseNodeDefinition(Config& config, zstring& s)
+	void ParseNodeDefinition(ParsingConfiguration& config, zstring& s)
 	{
 		auto name = ParseIdentifier(s);
 		auto parent = ""s;
@@ -193,7 +193,7 @@ namespace eds::loli::config
 		);
 	}
 
-	void ParseRuleDefinition(Config& config, zstring& s)
+	void ParseRuleDefinition(ParsingConfiguration& config, zstring& s)
 	{
 		auto name = ParseIdentifier(s);
 		ParseConstant(s, ":");
@@ -259,7 +259,7 @@ namespace eds::loli::config
 		);
 	}
 
-	void ParseConfigInternal(Config& config, zstring& s)
+	void ParseConfigInternal(ParsingConfiguration& config, zstring& s)
 	{
 		while (*s)
 		{
@@ -296,9 +296,9 @@ namespace eds::loli::config
 		}
 	}
 
-	unique_ptr<Config> ParseConfig(const char* data)
+	unique_ptr<ParsingConfiguration> LoadConfig(const char* data)
 	{
-		auto result = make_unique<Config>();
+		auto result = make_unique<ParsingConfiguration>();
 
 		try
 		{

@@ -178,7 +178,7 @@ namespace eds::loli
 		return make_unique<AstHandle>(move(klass_name), move(gen_handle), move(manip_handle));
 	}
 
-	void LoadTypeInfo(ParserBootstrapContext& ctx, const Config& config)
+	void LoadTypeInfo(ParserBootstrapContext& ctx, const ParsingConfiguration& config)
 	{
 		// load enum, base and klass definition
 		//
@@ -250,7 +250,7 @@ namespace eds::loli
 			}
 		}
 	}
-	void LoadGrammarInfo(ParserBootstrapContext& ctx, const Config& config)
+	void LoadGrammarInfo(ParserBootstrapContext& ctx, const ParsingConfiguration& config)
 	{
 		// load tokens, variables and rules
 		//
@@ -322,7 +322,7 @@ namespace eds::loli
 	}
 
 	// TODO: deal with potential type name conflict
-	unique_ptr<ParserBootstrapInfo> BootstrapParser(const Config& config)
+	unique_ptr<ParserBootstrapInfo> BootstrapParser(const ParsingConfiguration& config)
 	{
 		ParserBootstrapContext ctx;
 

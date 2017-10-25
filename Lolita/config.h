@@ -1,10 +1,10 @@
 #pragma once
-#include "grammar.h"
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <variant>
 #include <optional>
+#include <memory>
 
 namespace eds::loli::config
 {
@@ -82,7 +82,7 @@ namespace eds::loli::config
 	// Config
 	//
 
-	struct Config
+	struct ParsingConfiguration
 	{
 		std::vector<TokenDefinition> tokens;
 		std::vector<TokenDefinition> ignored_tokens;
@@ -92,6 +92,6 @@ namespace eds::loli::config
 		std::vector<RuleDefinition> rules;
 	};
 
-	std::unique_ptr<Config> ParseConfig(const char* data);
+	std::unique_ptr<ParsingConfiguration> LoadConfig(const char* data);
 	// TODO: void ValidateConfig(const Config& config);
 }

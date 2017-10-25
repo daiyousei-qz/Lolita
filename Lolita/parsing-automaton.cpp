@@ -56,40 +56,41 @@ namespace eds::loli::parsing
 	// Operator Overloads for Item(for FlatSet)
 	//
 
-	inline bool operator==(ParsingItem lhs, ParsingItem rhs)
+	inline bool operator==(const ParsingItem& lhs, const ParsingItem& rhs)
 	{
 		return lhs.production == rhs.production && lhs.cursor == rhs.cursor;
 	}
-	inline bool operator!=(ParsingItem lhs, ParsingItem rhs)
+	inline bool operator!=(const ParsingItem& lhs, const ParsingItem& rhs)
 	{
 		return !(lhs == rhs);
 	}
-	inline bool operator>(ParsingItem lhs, ParsingItem rhs)
+	inline bool operator<(const ParsingItem& lhs, const ParsingItem& rhs)
 	{
-		if (lhs.production > rhs.production) return true;
-		if (lhs.production < rhs.production) return false;
+		if (lhs.production < rhs.production) return true;
+		if (lhs.production > rhs.production) return false;
 
-		return lhs.cursor > rhs.cursor;
+		return lhs.cursor < rhs.cursor;
 	}
-	inline bool operator>=(ParsingItem lhs, ParsingItem rhs)
+	inline bool operator>(const ParsingItem& lhs, const ParsingItem& rhs)
 	{
-		return lhs == rhs || lhs > rhs;
+		return rhs < lhs;
 	}
-	inline bool operator<(ParsingItem lhs, ParsingItem rhs)
-	{
-		return !(lhs >= rhs);
-	}
-	inline bool operator<=(ParsingItem lhs, ParsingItem rhs)
+	inline bool operator<=(const ParsingItem& lhs, const ParsingItem& rhs)
 	{
 		return !(lhs > rhs);
 	}
+	inline bool operator>=(const ParsingItem& lhs, const ParsingItem& rhs)
+	{
+		return !(lhs < rhs);
+	}
 
 	using ItemSet = FlatSet<ParsingItem>;
+	using StateLookup = map<ItemSet, ParsingState*>;
 
 	struct BasicLRAutomaton
 	{
 		std::unique_ptr<ParsingAutomaton> pda;
-		map<ItemSet, ParsingState*> state_lookup;
+		StateLookup lookup;
 	};
 
 	// Expands state of kernal items into its closure
@@ -200,7 +201,7 @@ namespace eds::loli::parsing
 
 		auto pda = make_unique<ParsingAutomaton>();
 		auto initial_set = GenerateInitialItemSet(g);
-		map<ItemSet, ParsingState*> state_lookup{ { initial_set, pda->NewState() } };
+		StateLookup state_lookup{ { initial_set, pda->NewState() } };
 
 		// for each unvisited LR state, generate a target state for each possible symbol
 		for (deque<ItemSet> unprocessed{ initial_set }; !unprocessed.empty(); unprocessed.pop_front())
@@ -240,6 +241,9 @@ namespace eds::loli::parsing
 
 		return BasicLRAutomaton{ move(pda), move(state_lookup) };
 	}
+
+	// SLR
+	//
 
 	unique_ptr<const ParsingAutomaton> BuildSLRAutomaton(const Grammar& g)
 	{
@@ -283,77 +287,104 @@ namespace eds::loli::parsing
 	// LALR
 	//
 
-	unique_ptr<Grammar> ExtendGrammar(const Grammar& old_grammar, const ParsingAutomaton& atm)
+	ParsingState* LookupTargetState(ParsingState* src, const Symbol* s)
+	{
+		if (auto term = s->AsTerminal(); term)
+		{
+			return get<ActionShift>(src->action_map.at(term)).target;
+		}
+		else
+		{
+			return src->goto_map.at(s->AsNonterminal());
+		}
+	}
+
+	unique_ptr<Grammar> ExtendGrammar(const Grammar& old_grammar, const ParsingAutomaton& pda, const StateLookup& lookup)
 	{
 		auto ext_grammar = make_unique<Grammar>();
 
-		const auto state_count = atm.StateCount();
-		const auto term_count = old_grammar.TerminalCount();
-		const auto nonterm_count = old_grammar.NonterminalCount();
-
-		for (int i = 0; i < atm.StateCount(); ++i)
+		// (id, version)
+		// TODO: replace map with unordered_map
+		using SymbolKey = tuple<int, int>;
+		map<SymbolKey, Terminal*> term_lookup;
+		map<SymbolKey, Nonterminal*> nonterm_lookup;
+		for (int i = 0; i < pda.StateCount(); ++i)
 		{
-			const auto& state = atm.LookupState(i);
+			const auto& state = pda.LookupState(i);
 
 			// extend nonterms
 			for (const auto& goto_edge : state->goto_map)
 			{
 				auto id = goto_edge.first->id;
 				auto version = goto_edge.second->id;
+				assert(goto_edge.first->version == 0);
 
-				ext_grammar->NewNonterm(id, version);
+				if (nonterm_lookup.count({ id,version }) == 0)
+				{
+					auto nonterm = ext_grammar->NewNonterm(id, version);
+					nonterm_lookup[{id, version}] = nonterm;
+				}
 			}
 
 			// extend terms
 			for (const auto& action_edge : state->action_map)
 			{
 				auto id = action_edge.first->id;
-				auto version = get<const ActionShift>(action_edge.second).target->id;
+				auto version = get<ActionShift>(action_edge.second).target->id;
+				assert(action_edge.first->version == 0);
 
-				ext_grammar->NewTerm(id, version);
+				if (term_lookup.count({ id,version }) == 0)
+				{
+					auto term = ext_grammar->NewTerm(id, version);
+					term_lookup[{id, version}] = term;
+				}
 			}
 		}
+		
+		// extend root symbol
+		auto new_root = ext_grammar->NewNonterm(old_grammar.RootSymbol()->id, 0);
+		ext_grammar->ConfigureRootSymbol(new_root);
 
 		// extend productions
-		int initial_state;
-		for (auto i = 0; i < atm.StateCount(); ++i) // state
+		for (const auto& pair : lookup)
 		{
-			EnumerateClosureItems(old_grammar, atm.LookupState(i), [&](ParsingItem item) {
+			const auto& items = pair.first;
+			const auto& state = pair.second;
+
+			EnumerateClosureItems(old_grammar, items, [&](ParsingItem item) {
 
 				// we are only interested in non-kernel items(including intial state)
 				// to avoid repetition
-				if (item.cursor != 0) return;
-
-				// we process start symbol(ROOT) differently
-				// if(item.production)
-				// if (item.production == &old_grammar.RootProduction())
-				// {
-				//		initial_state = i;
-				//		return;
-				// }
+				if (item.IsKernal()) return;
 
 				// map left-hand side
-				auto lhs = ext_grammar->LookupTerminal(item.production->lhs->id, i);
+				Nonterminal* lhs = new_root;
+				if (item.production->lhs != old_grammar.RootSymbol())
+				{
+					auto lhs_id = item.production->lhs->id;
+					auto lhs_version = LookupTargetState(state, item.production->lhs)->id;
+					lhs = nonterm_lookup.at({ lhs_id, lhs_version });
+				}
 
 				// map right-hand side
 				std::vector<const Symbol*> rhs;
 
-				auto cur_state = i;
+				auto cur_state = state;
 				for (auto rhs_elem : item.production->rhs)
 				{
-					auto target_state = -1; // TODO:
-					assert(target_state != -1);
+					auto target_state = LookupTargetState(cur_state, rhs_elem);
+					assert(target_state != nullptr);
 
 					if (rhs_elem->AsTerminal())
 					{
 						rhs.push_back(
-							ext_grammar->LookupTerminal(rhs_elem->id, cur_state)
+							term_lookup.at({ rhs_elem->id, target_state->id })
 						);
 					}
 					else
 					{
 						rhs.push_back(
-							ext_grammar->LookupNonterminal(rhs_elem->id, cur_state)
+							nonterm_lookup.at({ rhs_elem->id, target_state->id })
 						);
 					}
 
@@ -361,22 +392,71 @@ namespace eds::loli::parsing
 				}
 
 				// create production
-				const auto& mapped_production = ext_grammar->NewProduction(lhs, rhs);
-
-				result.production_reg_lookup.push_back({ item.production->Id(), cur_state });
+				ext_grammar->NewProduction(item.production->id, lhs, rhs, cur_state->id);
 			});
 		}
 
-		auto raw_top = old_grammar.RootProduction().Right().front().AsNonTerminal();
-		auto mapped_top = nonterm_lookup.at(make_pair(raw_top, initial_state));
-
-		result.ext_grammar = ext_builder.Build(mapped_top);
-
-		return result;
+		return ext_grammar;
 	}
 
 	unique_ptr<const ParsingAutomaton> BuildLALRAutomaton(const Grammar& g)
 	{
+		auto[atm, state_lookup] = GenerateBasicParsingAutomaton(g);
 
+		auto ext_grammar = ExtendGrammar(g, *atm, state_lookup);
+		auto ext_ps = ComputePredictiveSet(*ext_grammar);
+
+		// calculate follows
+		set<const Nonterminal*> norm_ending;
+		map<const Nonterminal*, PredictiveInfo::TermSet> norm_follow;
+		for (const auto& nonterm : ext_grammar->Nonterminals())
+		{
+			const auto& ps_info = ext_ps.at(&nonterm);
+			auto raw_nonterm = g.LookupNonterminal(nonterm.id);
+
+			// normalized ending
+			if (ps_info.may_preceed_eof)
+			{
+				norm_ending.insert(raw_nonterm);
+			}
+
+			// normalized FOLLOW set
+			auto& follow = norm_follow[raw_nonterm];
+			for (auto term : ps_info.follow_set)
+			{
+				auto raw_term = g.LookupTerminal(term->id);
+				follow.insert(raw_term);
+			}
+		}
+
+		//
+		for (const auto& state_def : state_lookup)
+		{
+			const auto& item_set = get<0>(state_def);
+			const auto& state = get<1>(state_def);
+
+			for (auto item : item_set)
+			{
+				const auto& lhs = item.production->lhs;
+				const auto& rhs = item.production->rhs;
+
+				if (item.IsFinalized())
+				{
+					// for all term in FOLLOW do reduce
+					for (auto term : norm_follow.at(lhs))
+					{
+						atm->RegisterReduce(state, item.production, term);
+					}
+
+					// EOF
+					if (norm_ending.count(lhs) > 0)
+					{
+						atm->RegisterReduceOnEof(state, item.production);
+					}
+				}
+			}
+		}
+
+		return move(atm);
 	}
 }
