@@ -70,7 +70,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>C:\Users\sunks\Documents\Projects\edslib\edslib\src;$(IncludePath)</IncludePath>
+    <IncludePath>$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -78,6 +78,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>false</SDLCheck>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>C:\Users\sunks\Documents\Projects\edslib\edslib\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -118,10 +119,10 @@
   <ItemGroup>
     <ClInclude Include="ast-basic.h" />
     <ClInclude Include="ast-handle.h" />
-    <ClInclude Include="ast-include.h" />
-    <ClInclude Include="ast-trait.h" />
+    <ClInclude Include="codegen.h" />
+    <ClInclude Include="lolita-include.h" />
+    <ClInclude Include="ast-proxy.h" />
     <ClInclude Include="basic.h" />
-    <ClInclude Include="calc.h" />
     <ClInclude Include="calc2.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="debug.h" />
@@ -133,7 +134,6 @@
     <ClInclude Include="parsing-automaton.h" />
     <ClInclude Include="parsing-table.h" />
     <ClInclude Include="regex.h" />
-    <ClInclude Include="serialization.h" />
     <ClInclude Include="table.hpp" />
   </ItemGroup>
   <ItemGroup>

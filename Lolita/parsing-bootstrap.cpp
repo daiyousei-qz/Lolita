@@ -14,32 +14,25 @@ namespace eds::loli
 
 	void RegisterTypeInfo(TypeInfoMap& lookup, TypeInfo* info)
 	{
-		assert(lookup.count(info->Name()) == 0);
+		if (lookup.count(info->Name()) > 0)
+			throw ParserConstructionError{ "duplicate registered type info" };
 
 		lookup[info->Name()] = info;
 	}
 	void RegisterSymbolInfo(SymbolInfoMap& lookup, SymbolInfo* info)
 	{
-		assert(lookup.count(info->Name()) == 0);
+		if (lookup.count(info->Name()) > 0)
+			throw ParserConstructionError{ "duplicate registered symbol info" };
 
 		lookup[info->Name()] = info;
 	}
 
 	// TODO: support enum vec?
 	// TODO: refine this function, maybe map would help
-	unique_ptr<AstHandle> ConstructAstHandle(const ParserBootstrapContext& ctx, const TypeSpec& var_type, const RuleItem& item)
+	unique_ptr<AstHandle> ConstructAstHandle(const ParserBootstrapContext& ctx, const TypeSpec& var_type, const RuleItem& rule)
 	{
-		bool is_vec = var_type.qual == TypeSpec::Qualifier::Vector;
-		bool is_obj = [&]() {
-			switch (var_type.type->GetCategory())
-			{
-			case TypeInfo::Category::Base:
-			case TypeInfo::Category::Klass:
-				return true;
-			default:
-				return false;
-			}
-		}() && !is_vec;
+		bool is_vec = var_type.IsVector();
+		bool is_obj = (var_type.type->IsBase() || var_type.type->IsKlass()) && !is_vec;
 
 		auto klass_name = var_type.type->Name();
 
@@ -47,10 +40,10 @@ namespace eds::loli
 		//
 
 		auto gen_handle = [&]() -> AstHandle::GenHandle {
-			if (item.klass_hint)
+			if (rule.klass_hint)
 			{
 				// generator
-				const auto& hint = *item.klass_hint;
+				const auto& hint = *rule.klass_hint;
 
 				// enum
 				//
@@ -92,12 +85,12 @@ namespace eds::loli
 			{
 				// selector
 				auto it = find_if(
-					item.rhs.begin(), item.rhs.end(),
+					rule.rhs.begin(), rule.rhs.end(),
 					[](const auto& elem) { return elem.assign == "!"; }
 				);
-				assert(it != item.rhs.end());
+				assert(it != rule.rhs.end());
 
-				auto index = distance(item.rhs.begin(), it);
+				auto index = distance(rule.rhs.begin(), it);
 
 				// override klass name
 				auto symbol = ctx.symbol_lookup.at(it->symbol);
@@ -118,9 +111,9 @@ namespace eds::loli
 			if (is_vec)
 			{
 				vector<int> indices;
-				for (int i = 0; i < item.rhs.size(); ++i)
+				for (int i = 0; i < rule.rhs.size(); ++i)
 				{
-					const auto& symbol = item.rhs[i];
+					const auto& symbol = rule.rhs[i];
 					if (symbol.assign == "&")
 					{
 						indices.push_back(i);
@@ -143,10 +136,10 @@ namespace eds::loli
 			else if (is_obj)
 			{
 				vector<AstObjectSetter::SetterPair> setters;
-				for (int i = 0; i < item.rhs.size(); ++i)
+				for (int i = 0; i < rule.rhs.size(); ++i)
 				{
 					const auto& info = *dynamic_cast<KlassInfo*>(ctx.type_lookup.at(klass_name));
-					const auto& symbol = item.rhs[i];
+					const auto& symbol = rule.rhs[i];
 
 					if (!symbol.assign.empty() && symbol.assign != "!")
 					{

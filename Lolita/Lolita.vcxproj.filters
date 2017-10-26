@@ -38,9 +38,6 @@
     <ClInclude Include="config.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="serialization.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="parser.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -59,9 +56,6 @@
     <ClInclude Include="parsing-bootstrap.h">
       <Filter>Info</Filter>
     </ClInclude>
-    <ClInclude Include="ast-trait.h">
-      <Filter>Info</Filter>
-    </ClInclude>
     <ClInclude Include="ast-basic.h">
       <Filter>Info</Filter>
     </ClInclude>
@@ -71,14 +65,17 @@
     <ClInclude Include="debug.h">
       <Filter>Debug</Filter>
     </ClInclude>
-    <ClInclude Include="ast-include.h">
-      <Filter>Info</Filter>
-    </ClInclude>
-    <ClInclude Include="calc.h">
-      <Filter>Debug</Filter>
-    </ClInclude>
     <ClInclude Include="calc2.h">
       <Filter>Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="ast-proxy.h">
+      <Filter>Info</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita-include.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="codegen.h">
+      <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

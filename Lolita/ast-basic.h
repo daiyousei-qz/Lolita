@@ -1,11 +1,16 @@
 #pragma once
+#include "ext\type-utils.hpp"
 #include <string_view>
 #include <typeindex>
 #include <vector>
 #include <cassert>
+#include <variant>
 
 namespace eds::loli
 {
+	// Basic Types
+	//
+
 	struct Token
 	{
 		int category;
@@ -13,119 +18,160 @@ namespace eds::loli
 		int length;
 	};
 
-	class AstObjectBase 
+	class AstObjectBase
 	{
 	public:
 		AstObjectBase() = default;
 		virtual ~AstObjectBase() = default;
-	};
-	class AstVectorBase { };
 
-	class AstItem
+	private:
+		int offset;
+	};
+	class AstVectorBase : public AstObjectBase { };
+
+	template <typename T>
+	class AstVector : public AstVectorBase
 	{
 	public:
-		AstItem() { }
+		const auto& Data() const
+		{
+			return container_;
+		}
+
+		void Push(const T& value)
+		{
+			container_.push_back(value);
+		}
+
+	private:
+		std::vector<T> container_;
+	};
+
+	template <typename T>
+	class AstOptional;
+
+	// Type meta
+	//
+
+	enum class AstTypeCategory
+	{
+		Token, Enum, Base, Klass, Vector
+	};
+
+	template<typename T>
+	struct AstTypeTrait
+	{
+		static constexpr AstTypeCategory GetCategory()
+		{
+			using namespace eds::type;
+
+			if constexpr(Constraint<T>(same_to<Token>))
+			{
+				return AstTypeCategory::Token;
+			}
+			else if constexpr(Constraint<T>(is_enum_of<int>))
+			{
+				return AstTypeCategory::Enum;
+			}
+			else if constexpr(Constraint<T>(derive_from<AstVectorBase>))
+			{
+				return AstTypeCategory::Vector;
+			}
+			else if constexpr(Constraint<T>(derive_from<AstObjectBase>))
+			{
+				if constexpr(Constraint<T>(is_abstract))
+				{
+					return AstTypeCategory::Base;
+				}
+				else
+				{
+					return AstTypeCategory::Klass;
+				}
+			}
+			else
+			{
+				static_assert(AlwaysFalse<T>::value, "T is not a legitimate AstItem.");
+			}
+		}
+
+
+		static constexpr bool IsToken()  { return GetCategory() == AstTypeCategory::Token;  }
+		static constexpr bool IsEnum()   { return GetCategory() == AstTypeCategory::Enum;   }
+		static constexpr bool IsBase()   { return GetCategory() == AstTypeCategory::Base;   }
+		static constexpr bool IsKlass()  { return GetCategory() == AstTypeCategory::Klass;  }
+		static constexpr bool IsVector() { return GetCategory() == AstTypeCategory::Vector; }
+		
+		static constexpr bool AllowProxy() 
+		{
+			return !IsVector();
+		}
+
+		static constexpr bool StoredInPtr()
+		{
+			return IsBase() || IsKlass() || IsVector();
+		}
+
+		using SelfType = T;
+		using StoreType = std::conditional_t<AstTypeTrait::StoredInPtr(), T*, T>;
+		using VectorType = AstVector<StoreType>;
+	};
+
+	// NOTE this class is unsafe
+	// TODO: add some runtime type validation?
+	class AstTypeWrapper
+	{
+	public:
+		template <typename T>
+		using AstStoreType = typename AstTypeTrait<T>::StoreType;
+
+		AstTypeWrapper() { }
 
 		template <typename T>
 		T Extract()
 		{
-			if (type_ != std::type_index(typeid(T)))
-			{
-				// TODO: add type check compatible with inheritence
-				// throw 0; // type conflict
-			}
-
 			return RefAs<T>();
 		}
 
 		template <typename T>
 		void Assign(T value)
 		{
-			type_ = std::type_index{ typeid(T) };
-
 			RefAs<T>() = value;
 		}
 
 		template <typename T>
-		static AstItem Create(T value)
+		static AstTypeWrapper Create(T value)
 		{
-			AstItem result;
+			AstTypeWrapper result;
 			result.Assign<T>(value);
 
 			return result;
 		}
 
 	private:
-
 		template <typename T>
 		T& RefAs()
 		{
-			using PtrUnderlyingType = std::remove_pointer_t<T>;
+			using namespace eds::type;
 
-			if constexpr (std::is_enum_v<T>)
+			static_assert(Constraint<T>(!is_const && !is_volatile), "T should not be cv-qualified");
+
+			if constexpr(Constraint<T>(same_to<Token> || is_enum_of<int>))
 			{
-				static_assert(std::is_same_v<std::underlying_type_t<T>, int>);
-				return *reinterpret_cast<T*>(&data_.enum_value);
+				return *reinterpret_cast<T*>(&data_);
 			}
-			else if constexpr (std::is_same_v<T, Token>)
+			else if constexpr(Constraint<T>(convertible_to<AstObjectBase*> && !same_to<nullptr_t>))
 			{
-				return data_.token;
-			}
-			else if constexpr (std::is_base_of_v<AstObjectBase, PtrUnderlyingType>)
-			{
-				static_assert(std::is_same_v<T, PtrUnderlyingType*>);
-				return *reinterpret_cast<PtrUnderlyingType**>(&data_.object);
-			}
-			else if constexpr (std::is_base_of_v<AstVectorBase, PtrUnderlyingType>)
-			{
-				static_assert(std::is_same_v<T, PtrUnderlyingType*>);
-				return *reinterpret_cast<PtrUnderlyingType**>(&data_.vector);
+				return *reinterpret_cast<T*>(&data_);
 			}
 			else
 			{
-				static_assert(AlwaysFalse<T>::value);
+				static_assert(AlwaysFalse<T>, "T is not a valid AstType in store");
 			}
 		}
 
-		union DataType
-		{
-			nullptr_t dummy;
+		using StorageType
+			= std::aligned_union_t<4, int, Token, nullptr_t>;
 
-			int enum_value;
-			Token token;
-			AstObjectBase* object;
-			AstVectorBase* vector;
-
-		public:
-			DataType() : dummy(nullptr) { }
-		};
-
-		std::type_index type_ = typeid(void);
-		DataType data_ = {};
-	};
-
-	class AstItemView
-	{
-	public:
-		AstItemView(std::vector<AstItem>& stack, int count)
-			: ptr_(stack.data() + (stack.size() - count)), count_(count)
-		{
-			assert(stack.size() >= count);
-			assert(count >= 0);
-		}
-
-		bool Empty() const 
-		{
-			return count_ == 0; 
-		}
-		const AstItem& At(int index)
-		{
-			assert(index >= 0 && index < count_);
-			return ptr_[index];
-		}
-
-	private:
-		AstItem* ptr_;
-		int count_;
+		StorageType data_;
 	};
 }

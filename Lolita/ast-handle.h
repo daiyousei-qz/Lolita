@@ -1,11 +1,12 @@
 #pragma once
 #include "ast-basic.h"
-#include "ast-trait.h"
+#include "ast-proxy.h"
+#include "array-ref.hpp"
 #include <vector>
 #include <string_view>
 #include <variant>
 
-// given Arena&, AstTraitInterface&,s AstItemView
+// given Arena&, AstTraitInterface&,s ArrayRef<AstItem>
 // CHOICE ->
 // - return one item
 // * return null_opt
@@ -19,10 +20,10 @@ namespace eds::loli
 	namespace detail
 	{
 		template <bool Value>
-		class AllowDummyTrait
+		class AllowDummyProxy
 		{
 		public:
-			bool AcceptDummyTrait() const
+			constexpr bool AcceptDummyTrait() const
 			{
 				return Value;
 			}
@@ -32,13 +33,13 @@ namespace eds::loli
 	// Gen
 	//
 
-	class AstEnumGen : public detail::AllowDummyTrait<false>
+	class AstEnumGen : public detail::AllowDummyProxy<false>
 	{
 	public:
 		AstEnumGen(int value)
 			: value_(value) { }
 
-		AstItem Invoke(AstObjectTrait& trait, Arena& arena, AstItemView rhs) const
+		AstTypeWrapper Invoke(AstTypeProxy& trait, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
 		{
 			return trait.ConstructEnum(value_);
 		}
@@ -46,29 +47,29 @@ namespace eds::loli
 	private:
 		int value_;
 	};
-	class AstObjectGen : public detail::AllowDummyTrait<false>
+	class AstObjectGen : public detail::AllowDummyProxy<false>
 	{
 	public:
-		AstItem Invoke(AstObjectTrait& trait, Arena& arena, AstItemView rhs) const
+		AstTypeWrapper Invoke(AstTypeProxy& trait, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
 		{
 			return trait.ConstructObject(arena);
 		}
 	};	
-	class AstVectorGen : public detail::AllowDummyTrait<false>
+	class AstVectorGen : public detail::AllowDummyProxy<false>
 	{
 	public:
-		AstItem Invoke(AstObjectTrait& trait, Arena& arena, AstItemView rhs) const
+		AstTypeWrapper Invoke(AstTypeProxy& trait, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
 		{
 			return trait.ConstructVector(arena);
 		}
 	};
-	class AstItemSelector : public detail::AllowDummyTrait<true>
+	class AstItemSelector : public detail::AllowDummyProxy<true>
 	{
 	public:
 		AstItemSelector(int index)
 			: index_(index) { }
 
-		AstItem Invoke(AstObjectTrait& trait, Arena& arena, AstItemView rhs) const
+		AstTypeWrapper Invoke(AstTypeProxy& trait, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
 		{
 			return rhs.At(index_);
 		}
@@ -80,12 +81,12 @@ namespace eds::loli
 	// Manip
 	//
 
-	class AstManipPlaceholder : public detail::AllowDummyTrait<true>
+	class AstManipPlaceholder : public detail::AllowDummyProxy<true>
 	{
 	public:
-		void Invoke(AstObjectTrait& trait, AstItem item, AstItemView rhs) const { }
+		void Invoke(AstTypeProxy& trait, AstTypeWrapper item, ArrayRef<AstTypeWrapper> rhs) const { }
 	};
-	class AstObjectSetter : public detail::AllowDummyTrait<false>
+	class AstObjectSetter : public detail::AllowDummyProxy<false>
 	{
 	public:
 		struct SetterPair
@@ -97,7 +98,7 @@ namespace eds::loli
 		AstObjectSetter(const std::vector<SetterPair>& setters)
 			: setters_(setters) { }
 
-		void Invoke(AstObjectTrait& trait, AstItem obj, AstItemView rhs) const
+		void Invoke(AstTypeProxy& trait, AstTypeWrapper obj, ArrayRef<AstTypeWrapper> rhs) const
 		{
 			for (auto setter : setters_)
 			{
@@ -108,13 +109,13 @@ namespace eds::loli
 	private:
 		std::vector<SetterPair> setters_;
 	};
-	class AstVectorMerger : public detail::AllowDummyTrait<false>
+	class AstVectorMerger : public detail::AllowDummyProxy<false>
 	{
 	public:
 		AstVectorMerger(const std::vector<int>& indices)
 			: indices_(indices) { }
 
-		void Invoke(AstObjectTrait& trait, AstItem vec, AstItemView rhs) const
+		void Invoke(AstTypeProxy& trait, AstTypeWrapper vec, ArrayRef<AstTypeWrapper> rhs) const
 		{
 			for (auto index : indices_)
 			{
@@ -126,7 +127,7 @@ namespace eds::loli
 		std::vector<int> indices_;
 	};
 
-	// Handle
+	// Reduction Handle
 	//
 
 	class AstHandle
@@ -157,11 +158,11 @@ namespace eds::loli
 				&& std::visit(test_dummy_visitor, manip_handle_);
 		}
 
-		AstItem Invoke(AstTraitManager& ctx, Arena& arena, AstItemView rhs) const
+		AstTypeWrapper Invoke(const AstTypeProxyManager& manager, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
 		{
 			auto& trait = AcceptDummyTrait()
-				? ctx.Dummy()
-				: ctx.Lookup(klass_);
+				? manager.DummyProxy()
+				: manager.Lookup(klass_);
 
 			auto gen_visitor = [&](const auto& gen) { return gen.Invoke(trait, arena, rhs); };
 			auto result = std::visit(gen_visitor, gen_handle_);

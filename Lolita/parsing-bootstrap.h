@@ -38,8 +38,8 @@ namespace eds::loli
 		virtual Category GetCategory() const = 0;
 
 		bool IsToken() const { return GetCategory() == Category::Token; }
-		bool IsEnum()  const { return GetCategory() == Category::Enum; }
-		bool IsBase()  const { return GetCategory() == Category::Base; }
+		bool IsEnum()  const { return GetCategory() == Category::Enum;  }
+		bool IsBase()  const { return GetCategory() == Category::Base;  }
 		bool IsKlass() const { return GetCategory() == Category::Klass; }
 
 		// stored as pointer in AST
@@ -225,14 +225,16 @@ namespace eds::loli
 		ParserBootstrapInfo(ParserBootstrapContext data)
 			: ctx_(std::move(data)) { }
 
-		const auto& Enums() const { return ctx_.enums; }
-		const auto& Bases() const { return ctx_.bases; }
-		const auto& Klasses() const { return ctx_.klasses; }
+		const auto& RootVariable()  const { return ctx_.variables.back(); }
 
-		const auto& Tokens() const { return ctx_.tokens; }
+		const auto& Enums()			const { return ctx_.enums; }
+		const auto& Bases()			const { return ctx_.bases; }
+		const auto& Klasses()		const { return ctx_.klasses; }
+
+		const auto& Tokens()		const { return ctx_.tokens; }
 		const auto& IgnoredTokens() const { return ctx_.ignored_tokens; }
-		const auto& Variables() const { return ctx_.variables; }
-		const auto& Productions() const { return ctx_.productions; }
+		const auto& Variables()		const { return ctx_.variables; }
+		const auto& Productions()	const { return ctx_.productions; }
 
 		const auto& LookupType(const std::string& name)
 		{

@@ -14,4 +14,11 @@ namespace eds::loli
 		ParserConstructionError(const std::string& msg)
 			: std::runtime_error(msg) { }
 	};
+
+	struct ParserInternalError : std::runtime_error
+	{
+	public:
+		ParserInternalError(const std::string& msg)
+			: std::runtime_error(msg) { }
+	};
 }

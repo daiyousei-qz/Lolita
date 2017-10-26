@@ -6,29 +6,48 @@
 
 namespace eds::loli
 {
-	template <typename T>
+	template<typename T>
 	struct ParsingResult
 	{
 		std::unique_ptr<Arena> arena;
 
 	};
 
-	class Parser
+	struct ParsingContext
 	{
-	public:
-		void Parse(std::string_view data)
-		{
-			// lex and parse
-			// two stacks: parsing-symbol-stack and ast-stack
-			// once a reduction happens
-			// call AstHandle.Invoke(...) on ast-stack
-		}
+		std::unique_ptr<Arena> arena;
 
-	private:
-		std::unique_ptr<ParserBootstrapInfo> info_; // loaded from config file
-		std::unique_ptr<AstTraitManager> traits_; // loaded from generated code
-		std::unique_ptr<ParsingTable> table_; // runtime generated
+		std::vector<PdaStateId> state_stack;
+		std::vector<AstTypeWrapper> ast_stack;
 	};
 
-	std::string GenerateDataBinding(const ParserBootstrapInfo& info);
+	class BasicParser
+	{
+	public:
+		BasicParser(
+			std::unique_ptr<const ParserBootstrapInfo> info,
+			std::unique_ptr<const AstTypeProxyManager> manager,
+			std::unique_ptr<const ParsingTable> table
+		)
+			: parser_info_(std::move(info))
+			, proxy_manager_(std::move(manager))
+			, parsing_table_(std::move(table))
+		{
+
+		}
+
+		const auto& GetParserInfo() const { return *parser_info_; }
+		const auto& GetProxyManager() const { return *proxy_manager_; }
+		const auto& GetParsingTable() const { return *parsing_table_; }
+
+		void Parse(std::string_view data) const;
+
+	private:
+		Token LoadToken(std::string_view data, int offset) const;
+		void FeedParser(ParsingContext& ctx, int tok) const;
+
+		std::unique_ptr<const ParserBootstrapInfo> parser_info_;	// loaded from config file
+		std::unique_ptr<const AstTypeProxyManager> proxy_manager_;	// loaded from generated code
+		std::unique_ptr<const ParsingTable> parsing_table_;			// runtime generated
+	};
 }
