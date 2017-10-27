@@ -65,11 +65,10 @@ namespace eds::loli
 	public:
 		using TraitType = AstTypeTrait<T>;
 
-		static_assert(TraitType::AllowProxy());
-
 		using SelfType = typename TraitType::SelfType;
 		using StoreType = typename TraitType::StoreType;
-		using VectorType = typename TraitType::VectorType;
+
+		using VectorType = AstVector<SelfType>;
 
 		AstTypeWrapper ConstructEnum(int value) override
 		{

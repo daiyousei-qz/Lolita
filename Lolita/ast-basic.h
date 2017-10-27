@@ -18,44 +18,22 @@ namespace eds::loli
 		int length;
 	};
 
-	class AstObjectBase
+	class AstObject
 	{
 	public:
-		AstObjectBase() = default;
-		virtual ~AstObjectBase() = default;
+		AstObject() = default;
+		virtual ~AstObject() = default;
 
 	private:
 		int offset;
 	};
-	class AstVectorBase : public AstObjectBase { };
-
-	template <typename T>
-	class AstVector : public AstVectorBase
-	{
-	public:
-		const auto& Data() const
-		{
-			return container_;
-		}
-
-		void Push(const T& value)
-		{
-			container_.push_back(value);
-		}
-
-	private:
-		std::vector<T> container_;
-	};
-
-	template <typename T>
-	class AstOptional;
 
 	// Type meta
 	//
 
 	enum class AstTypeCategory
 	{
-		Token, Enum, Base, Klass, Vector
+		Token, Enum, Base, Klass
 	};
 
 	template<typename T>
@@ -73,11 +51,7 @@ namespace eds::loli
 			{
 				return AstTypeCategory::Enum;
 			}
-			else if constexpr(Constraint<T>(derive_from<AstVectorBase>))
-			{
-				return AstTypeCategory::Vector;
-			}
-			else if constexpr(Constraint<T>(derive_from<AstObjectBase>))
+			else if constexpr(Constraint<T>(derive_from<AstObject>))
 			{
 				if constexpr(Constraint<T>(is_abstract))
 				{
@@ -94,36 +68,94 @@ namespace eds::loli
 			}
 		}
 
-
 		static constexpr bool IsToken()  { return GetCategory() == AstTypeCategory::Token;  }
 		static constexpr bool IsEnum()   { return GetCategory() == AstTypeCategory::Enum;   }
 		static constexpr bool IsBase()   { return GetCategory() == AstTypeCategory::Base;   }
 		static constexpr bool IsKlass()  { return GetCategory() == AstTypeCategory::Klass;  }
-		static constexpr bool IsVector() { return GetCategory() == AstTypeCategory::Vector; }
 		
-		static constexpr bool AllowProxy() 
-		{
-			return !IsVector();
-		}
-
 		static constexpr bool StoredInPtr()
 		{
-			return IsBase() || IsKlass() || IsVector();
+			return IsBase() || IsKlass();
 		}
 
 		using SelfType = T;
 		using StoreType = std::conditional_t<AstTypeTrait::StoredInPtr(), T*, T>;
-		using VectorType = AstVector<StoreType>;
 	};
+
+	// Type Enhancement
+	//
+	template<typename T>
+	class AstVector
+	{
+	public:
+		using ElementType = typename AstTypeTrait<T>::StoreType;
+
+		const auto& Data() const
+		{
+			return container_;
+		}
+
+		void Push(const ElementType& value)
+		{
+			container_.push_back(value);
+		}
+
+	private:
+		std::vector<ElementType> container_;
+	};
+
+	template<typename T>
+	class AstOptional
+	{
+	public:
+		using ElementType = typename AstTypeTrait<T>::StoreType;
+
+		bool HasValue() const;
+
+		const auto& Data() const
+		{
+			assert(HasValue());
+			return value_;
+		}
+
+	private:
+		ElementType value_;
+	};
+
+	namespace detail
+	{
+		template<typename U>
+		struct IsQualifiedAstItem : std::false_type { };
+		template<typename U>
+		struct IsQualifiedAstItem<AstVector<U>*> :std::true_type { };
+		template<typename U>
+		struct IsQualifiedAstItem<AstOptional<U>> :std::true_type { };
+
+		template<typename T>
+		inline constexpr bool IsAstItem()
+		{
+			using namespace eds::type;
+
+			if constexpr(Constraint<T>(same_to<Token> || is_enum_of<int>))
+			{
+				return true;
+			}
+			else if constexpr(Constraint<T>(convertible_to<AstObject*> && !same_to<nullptr_t>))
+			{
+				return true;
+			}
+			else
+			{
+				return IsQualifiedAstItem<T>::value;
+			}
+		}
+	}
 
 	// NOTE this class is unsafe
 	// TODO: add some runtime type validation?
 	class AstTypeWrapper
 	{
 	public:
-		template <typename T>
-		using AstStoreType = typename AstTypeTrait<T>::StoreType;
-
 		AstTypeWrapper() { }
 
 		template <typename T>
@@ -155,11 +187,7 @@ namespace eds::loli
 
 			static_assert(Constraint<T>(!is_const && !is_volatile), "T should not be cv-qualified");
 
-			if constexpr(Constraint<T>(same_to<Token> || is_enum_of<int>))
-			{
-				return *reinterpret_cast<T*>(&data_);
-			}
-			else if constexpr(Constraint<T>(convertible_to<AstObjectBase*> && !same_to<nullptr_t>))
+			if constexpr(detail::IsAstItem<T>())
 			{
 				return *reinterpret_cast<T*>(&data_);
 			}

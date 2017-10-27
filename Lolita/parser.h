@@ -10,7 +10,7 @@ namespace eds::loli
 	struct ParsingResult
 	{
 		std::unique_ptr<Arena> arena;
-
+		T value;
 	};
 
 	struct ParsingContext

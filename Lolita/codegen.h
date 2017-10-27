@@ -167,7 +167,7 @@ namespace eds::loli::codegen
 			e.EmptyLine();
 			for (const auto& base_def : info.Bases())
 			{
-				e.Struct(base_def.Name(), "public AstObjectBase", [&]() {
+				e.Struct(base_def.Name(), "public AstObject", [&]() {
 
 					// visitor
 					e.Struct("Visitor", "", [&]() {
@@ -189,7 +189,7 @@ namespace eds::loli::codegen
 			e.EmptyLine();
 			for (const auto& klass_def : info.Klasses())
 			{
-				auto inh = "public " + (klass_def.base ? klass_def.base->Name() : "AstObjectBase");
+				auto inh = "public " + (klass_def.base ? klass_def.base->Name() : "AstObject");
 				e.Struct(klass_def.Name(), inh, [&]() {
 					for (const auto& member : klass_def.members)
 					{
@@ -197,13 +197,13 @@ namespace eds::loli::codegen
 
 						if (type == "token") type = "Token";
 
-						if (member.type.type->IsStoredByRef())
-						{
-							type.append("*");
-						}
-						if (member.type.qual == TypeSpec::Qualifier::Vector)
+						if (member.type.IsVector())
 						{
 							type = text::Format("AstVector<{}>*", type);
+						}
+						else if (member.type.type->IsStoredByRef())
+						{
+							type.append("*");
 						}
 
 						e.WriteLine("{} {};", type, member.name);

@@ -19,7 +19,7 @@ using namespace eds::text;
 
 std::string LoadConfigText()
 {
-	std::fstream file{ "d:\\aqua2.loli.txt" };
+	std::fstream file{ "d:\\aqua.loli.txt" };
 	return std::string(std::istreambuf_iterator<char>{file}, {});
 }
 

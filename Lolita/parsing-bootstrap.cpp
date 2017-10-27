@@ -42,13 +42,13 @@ namespace eds::loli
 		auto gen_handle = [&]() -> AstHandle::GenHandle {
 			if (rule.klass_hint)
 			{
-				// generator
+				// a new item should be generated
 				const auto& hint = *rule.klass_hint;
 
 				// enum
 				//
 
-				if (var_type.type->GetCategory() == TypeInfo::Category::Enum)
+				if (var_type.type->IsEnum())
 				{
 					assert(hint.qual.empty());
 
@@ -66,19 +66,16 @@ namespace eds::loli
 				//
 
 				// override klass name
-				klass_name = hint.name;
+				klass_name = (hint.name=="_" ? var_type.type->Name() : hint.name);
 
 				// make genenerator
-				if (hint.qual.empty())
+				if (is_vec)
 				{
-					is_obj = true;
-					return AstObjectGen{};
+					return AstVectorGen{};
 				}
 				else
 				{
-					assert(hint.qual == "vec");
-					is_vec = true;
-					return AstVectorGen{};
+					return AstObjectGen{};
 				}
 			}
 			else

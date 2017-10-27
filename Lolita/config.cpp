@@ -244,7 +244,14 @@ namespace eds::loli::config
 			optional<QualType> klass_hint;
 			if (TryParseConstant(s, "->"))
 			{
-				klass_hint = ParseTypeSpec(s);
+				if (TryParseConstant(s, "_"))
+				{
+					klass_hint = QualType{ "_", "" };
+				}
+				else
+				{
+					klass_hint = ParseTypeSpec(s);
+				}
 			}
 
 			items.push_back(

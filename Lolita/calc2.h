@@ -69,7 +69,7 @@ namespace eds::loli
 		Var,
 	};
 
-	struct Literal : public AstObjectBase
+	struct Literal : public AstObject
 	{
 		struct Visitor
 		{
@@ -79,7 +79,7 @@ namespace eds::loli
 
 		virtual void Accept(Visitor&) = 0;
 	};
-	struct Type : public AstObjectBase
+	struct Type : public AstObject
 	{
 		struct Visitor
 		{
@@ -88,7 +88,7 @@ namespace eds::loli
 
 		virtual void Accept(Visitor&) = 0;
 	};
-	struct Expression : public AstObjectBase
+	struct Expression : public AstObject
 	{
 		struct Visitor
 		{
@@ -99,7 +99,7 @@ namespace eds::loli
 
 		virtual void Accept(Visitor&) = 0;
 	};
-	struct Statement : public AstObjectBase
+	struct Statement : public AstObject
 	{
 		struct Visitor
 		{
@@ -184,7 +184,7 @@ namespace eds::loli
 	};
 	struct CompoundStmt : public Statement
 	{
-		AstVector<Statement*>* children;
+		AstVector<Statement>* children;
 
 	public:
 		void Accept(Statement::Visitor& v) override { v.Visit(*this); }
@@ -206,21 +206,21 @@ namespace eds::loli
 	public:
 		void Accept(Statement::Visitor& v) override { v.Visit(*this); }
 	};
-	struct TypedName : public AstObjectBase
+	struct TypedName : public AstObject
 	{
 		Token name;
 		Type* type;
 	};
-	struct FuncDecl : public AstObjectBase
+	struct FuncDecl : public AstObject
 	{
 		Token name;
-		AstVector<TypedName*>* params;
+		AstVector<TypedName>* params;
 		Type* ret;
-		AstVector<Statement*>* body;
+		AstVector<Statement>* body;
 	};
-	struct TranslationUnit : public AstObjectBase
+	struct TranslationUnit : public AstObject
 	{
-		AstVector<FuncDecl*>* functions;
+		AstVector<FuncDecl>* functions;
 	};
 
 	// Proxy definitions
