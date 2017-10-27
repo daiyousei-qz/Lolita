@@ -3,6 +3,7 @@
 #include <sstream>
 #include "text/format.hpp"
 #include "calc2.h"
+#include "debug.h"
 
 using namespace std;
 using namespace eds::text;
@@ -69,6 +70,7 @@ namespace eds::loli
 
 			void operator()(PdaActionShift action)
 			{
+				PrintFormatted("Shift state {}\n", action.destination.Value());
 				ctx.state_stack.push_back(action.destination);
 				hungry = false;
 			}
@@ -79,6 +81,7 @@ namespace eds::loli
 				const auto& table = parser.GetParsingTable();
 
 				const auto& production = info.Productions()[action.production];
+				PrintFormatted("Reduce {}\n", debug::ToString_Production(info, action.production));
 
 				// update state stack
 				const auto count = production.rhs.size();
@@ -153,6 +156,7 @@ namespace eds::loli
 			// ignore categories in blacklist
 			if (tok.category >= GetParsingTable().TerminalCount()) continue;
 
+			PrintFormatted("Lookahead {} which is {}\n", debug::ToString_Token(GetParserInfo(), tok.category), data.substr(tok.offset, tok.length));
 			FeedParser(ctx, tok.category);
 			ctx.ast_stack.push_back(AstTypeWrapper::Create<Token>(tok));
 		}
@@ -161,6 +165,6 @@ namespace eds::loli
 		FeedParser(ctx, -1);
 
 		// TODO: refine parser interface
-		auto result = ctx.ast_stack.front().Extract<Statement*>();
+		auto result = ctx.ast_stack.front().Extract<TranslationUnit*>();
 	}
 }

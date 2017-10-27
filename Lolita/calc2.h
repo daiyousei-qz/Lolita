@@ -11,19 +11,25 @@ namespace eds::loli
 	//
 
 	struct Literal;
+	struct Type;
 	struct Expression;
 	struct Statement;
 
 	struct BoolLiteral;
 	struct IntLiteral;
+	struct NamedType;
 	struct BinaryExpr;
 	struct NamedExpr;
 	struct LiteralExpr;
-	struct LetStmt;
+	struct VariableDeclStmt;
 	struct JumpStmt;
-	struct WhileStmt;
-	struct IfElseStmt;
+	struct ReturnStmt;
 	struct CompoundStmt;
+	struct WhileStmt;
+	struct ChoiceStmt;
+	struct TypedName;
+	struct FuncDecl;
+	struct TranslationUnit;
 
 	// Class definitions
 	//
@@ -57,6 +63,11 @@ namespace eds::loli
 		Break,
 		Continue,
 	};
+	enum VariableMutability
+	{
+		Val,
+		Var,
+	};
 
 	struct Literal : public AstObjectBase
 	{
@@ -64,6 +75,15 @@ namespace eds::loli
 		{
 			virtual void Visit(BoolLiteral&) = 0;
 			virtual void Visit(IntLiteral&) = 0;
+		};
+
+		virtual void Accept(Visitor&) = 0;
+	};
+	struct Type : public AstObjectBase
+	{
+		struct Visitor
+		{
+			virtual void Visit(NamedType&) = 0;
 		};
 
 		virtual void Accept(Visitor&) = 0;
@@ -83,11 +103,12 @@ namespace eds::loli
 	{
 		struct Visitor
 		{
-			virtual void Visit(LetStmt&) = 0;
+			virtual void Visit(VariableDeclStmt&) = 0;
 			virtual void Visit(JumpStmt&) = 0;
-			virtual void Visit(WhileStmt&) = 0;
-			virtual void Visit(IfElseStmt&) = 0;
+			virtual void Visit(ReturnStmt&) = 0;
 			virtual void Visit(CompoundStmt&) = 0;
+			virtual void Visit(WhileStmt&) = 0;
+			virtual void Visit(ChoiceStmt&) = 0;
 		};
 
 		virtual void Accept(Visitor&) = 0;
@@ -106,6 +127,13 @@ namespace eds::loli
 
 	public:
 		void Accept(Literal::Visitor& v) override { v.Visit(*this); }
+	};
+	struct NamedType : public Type
+	{
+		Token name;
+
+	public:
+		void Accept(Type::Visitor& v) override { v.Visit(*this); }
 	};
 	struct BinaryExpr : public Expression
 	{
@@ -130,9 +158,11 @@ namespace eds::loli
 	public:
 		void Accept(Expression::Visitor& v) override { v.Visit(*this); }
 	};
-	struct LetStmt : public Statement
+	struct VariableDeclStmt : public Statement
 	{
+		VariableMutability mut;
 		Token name;
+		Type* type;
 		Expression* value;
 
 	public:
@@ -145,19 +175,9 @@ namespace eds::loli
 	public:
 		void Accept(Statement::Visitor& v) override { v.Visit(*this); }
 	};
-	struct WhileStmt : public Statement
+	struct ReturnStmt : public Statement
 	{
-		Expression* pred;
-		Statement* body;
-
-	public:
-		void Accept(Statement::Visitor& v) override { v.Visit(*this); }
-	};
-	struct IfElseStmt : public Statement
-	{
-		Expression* pred;
-		Statement* positive;
-		Statement* negative;
+		Expression* expr;
 
 	public:
 		void Accept(Statement::Visitor& v) override { v.Visit(*this); }
@@ -169,6 +189,39 @@ namespace eds::loli
 	public:
 		void Accept(Statement::Visitor& v) override { v.Visit(*this); }
 	};
+	struct WhileStmt : public Statement
+	{
+		Expression* pred;
+		Statement* body;
+
+	public:
+		void Accept(Statement::Visitor& v) override { v.Visit(*this); }
+	};
+	struct ChoiceStmt : public Statement
+	{
+		Expression* pred;
+		Statement* positive;
+		Statement* negative;
+
+	public:
+		void Accept(Statement::Visitor& v) override { v.Visit(*this); }
+	};
+	struct TypedName : public AstObjectBase
+	{
+		Token name;
+		Type* type;
+	};
+	struct FuncDecl : public AstObjectBase
+	{
+		Token name;
+		AstVector<TypedName*>* params;
+		Type* ret;
+		AstVector<Statement*>* body;
+	};
+	struct TranslationUnit : public AstObjectBase
+	{
+		AstVector<FuncDecl*>* functions;
+	};
 
 	// Proxy definitions
 	//
@@ -176,8 +229,10 @@ namespace eds::loli
 	class AstTypeProxy_BoolValue : public BasicAstTypeProxy<BoolValue> { };
 	class AstTypeProxy_BinaryOp : public BasicAstTypeProxy<BinaryOp> { };
 	class AstTypeProxy_JumpCommand : public BasicAstTypeProxy<JumpCommand> { };
+	class AstTypeProxy_VariableMutability : public BasicAstTypeProxy<VariableMutability> { };
 
 	class AstTypeProxy_Literal : public BasicAstTypeProxy<Literal> { };
+	class AstTypeProxy_Type : public BasicAstTypeProxy<Type> { };
 	class AstTypeProxy_Expression : public BasicAstTypeProxy<Expression> { };
 	class AstTypeProxy_Statement : public BasicAstTypeProxy<Statement> { };
 
@@ -208,6 +263,22 @@ namespace eds::loli
 			{
 			case 0:
 				QuickAssignField(p->content, value);
+				break;
+			default: throw 0;
+			}
+		}
+	};
+	class AstTypeProxy_NamedType : public BasicAstTypeProxy<NamedType>
+	{
+	public:
+
+		void AssignField(AstTypeWrapper obj, int codinal, AstTypeWrapper value) override
+		{
+			auto p = obj.Extract<StoreType>();
+			switch (codinal)
+			{
+			case 0:
+				QuickAssignField(p->name, value);
 				break;
 			default: throw 0;
 			}
@@ -267,7 +338,7 @@ namespace eds::loli
 			}
 		}
 	};
-	class AstTypeProxy_LetStmt : public BasicAstTypeProxy<LetStmt>
+	class AstTypeProxy_VariableDeclStmt : public BasicAstTypeProxy<VariableDeclStmt>
 	{
 	public:
 
@@ -277,9 +348,15 @@ namespace eds::loli
 			switch (codinal)
 			{
 			case 0:
-				QuickAssignField(p->name, value);
+				QuickAssignField(p->mut, value);
 				break;
 			case 1:
+				QuickAssignField(p->name, value);
+				break;
+			case 2:
+				QuickAssignField(p->type, value);
+				break;
+			case 3:
 				QuickAssignField(p->value, value);
 				break;
 			default: throw 0;
@@ -297,6 +374,38 @@ namespace eds::loli
 			{
 			case 0:
 				QuickAssignField(p->command, value);
+				break;
+			default: throw 0;
+			}
+		}
+	};
+	class AstTypeProxy_ReturnStmt : public BasicAstTypeProxy<ReturnStmt>
+	{
+	public:
+
+		void AssignField(AstTypeWrapper obj, int codinal, AstTypeWrapper value) override
+		{
+			auto p = obj.Extract<StoreType>();
+			switch (codinal)
+			{
+			case 0:
+				QuickAssignField(p->expr, value);
+				break;
+			default: throw 0;
+			}
+		}
+	};
+	class AstTypeProxy_CompoundStmt : public BasicAstTypeProxy<CompoundStmt>
+	{
+	public:
+
+		void AssignField(AstTypeWrapper obj, int codinal, AstTypeWrapper value) override
+		{
+			auto p = obj.Extract<StoreType>();
+			switch (codinal)
+			{
+			case 0:
+				QuickAssignField(p->children, value);
 				break;
 			default: throw 0;
 			}
@@ -321,7 +430,7 @@ namespace eds::loli
 			}
 		}
 	};
-	class AstTypeProxy_IfElseStmt : public BasicAstTypeProxy<IfElseStmt>
+	class AstTypeProxy_ChoiceStmt : public BasicAstTypeProxy<ChoiceStmt>
 	{
 	public:
 
@@ -343,7 +452,7 @@ namespace eds::loli
 			}
 		}
 	};
-	class AstTypeProxy_CompoundStmt : public BasicAstTypeProxy<CompoundStmt>
+	class AstTypeProxy_TypedName : public BasicAstTypeProxy<TypedName>
 	{
 	public:
 
@@ -353,7 +462,51 @@ namespace eds::loli
 			switch (codinal)
 			{
 			case 0:
-				QuickAssignField(p->children, value);
+				QuickAssignField(p->name, value);
+				break;
+			case 1:
+				QuickAssignField(p->type, value);
+				break;
+			default: throw 0;
+			}
+		}
+	};
+	class AstTypeProxy_FuncDecl : public BasicAstTypeProxy<FuncDecl>
+	{
+	public:
+
+		void AssignField(AstTypeWrapper obj, int codinal, AstTypeWrapper value) override
+		{
+			auto p = obj.Extract<StoreType>();
+			switch (codinal)
+			{
+			case 0:
+				QuickAssignField(p->name, value);
+				break;
+			case 1:
+				QuickAssignField(p->params, value);
+				break;
+			case 2:
+				QuickAssignField(p->ret, value);
+				break;
+			case 3:
+				QuickAssignField(p->body, value);
+				break;
+			default: throw 0;
+			}
+		}
+	};
+	class AstTypeProxy_TranslationUnit : public BasicAstTypeProxy<TranslationUnit>
+	{
+	public:
+
+		void AssignField(AstTypeWrapper obj, int codinal, AstTypeWrapper value) override
+		{
+			auto p = obj.Extract<StoreType>();
+			switch (codinal)
+			{
+			case 0:
+				QuickAssignField(p->functions, value);
 				break;
 			default: throw 0;
 			}
@@ -370,21 +523,28 @@ namespace eds::loli
 		result->Register<AstTypeProxy_BoolValue>("BoolValue");
 		result->Register<AstTypeProxy_BinaryOp>("BinaryOp");
 		result->Register<AstTypeProxy_JumpCommand>("JumpCommand");
+		result->Register<AstTypeProxy_VariableMutability>("VariableMutability");
 
 		result->Register<AstTypeProxy_Literal>("Literal");
+		result->Register<AstTypeProxy_Type>("Type");
 		result->Register<AstTypeProxy_Expression>("Expression");
 		result->Register<AstTypeProxy_Statement>("Statement");
 
 		result->Register<AstTypeProxy_BoolLiteral>("BoolLiteral");
 		result->Register<AstTypeProxy_IntLiteral>("IntLiteral");
+		result->Register<AstTypeProxy_NamedType>("NamedType");
 		result->Register<AstTypeProxy_BinaryExpr>("BinaryExpr");
 		result->Register<AstTypeProxy_NamedExpr>("NamedExpr");
 		result->Register<AstTypeProxy_LiteralExpr>("LiteralExpr");
-		result->Register<AstTypeProxy_LetStmt>("LetStmt");
+		result->Register<AstTypeProxy_VariableDeclStmt>("VariableDeclStmt");
 		result->Register<AstTypeProxy_JumpStmt>("JumpStmt");
-		result->Register<AstTypeProxy_WhileStmt>("WhileStmt");
-		result->Register<AstTypeProxy_IfElseStmt>("IfElseStmt");
+		result->Register<AstTypeProxy_ReturnStmt>("ReturnStmt");
 		result->Register<AstTypeProxy_CompoundStmt>("CompoundStmt");
+		result->Register<AstTypeProxy_WhileStmt>("WhileStmt");
+		result->Register<AstTypeProxy_ChoiceStmt>("ChoiceStmt");
+		result->Register<AstTypeProxy_TypedName>("TypedName");
+		result->Register<AstTypeProxy_FuncDecl>("FuncDecl");
+		result->Register<AstTypeProxy_TranslationUnit>("TranslationUnit");
 
 		return result;
 	}

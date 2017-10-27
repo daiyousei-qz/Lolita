@@ -124,7 +124,7 @@ namespace eds::loli
 			std::string name;
 		};
 
-		BaseInfo* base;
+		BaseInfo* base = nullptr;
 		std::vector<Member> members;
 
 	public:
