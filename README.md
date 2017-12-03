@@ -3,6 +3,8 @@
 ## Overview
 Project Lolita is an exprimental lexer and parser generator that supports parser generation with minimal regular expression and LALR(1) grammar. With a builtin AST construction engine, the syntax tree Project Lolita produce is automatically folded on grammar reduction and a visitor interface for klasses of the same category is also generated to ease the postprocess of the parsing tree.
 
+**The project is being privately rewritten.**
+
 ## License
 This is a personal project released in MIT license. You may feel free to read, copy, modify and distribute the code, but reliability is **ABSOLUTELY NOT GUARANTEED**. Any help and question on the project is welcomed.
 

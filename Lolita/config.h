@@ -10,11 +10,10 @@ namespace eds::loli::config
 {
 	// Type
 	//
-
 	struct QualType
 	{
 		std::string name; // id
-		std::string qual; // "" or "vec"
+		std::string qual; // "", "opt" or "vec"
 	};
 
 	// Token
@@ -23,7 +22,7 @@ namespace eds::loli::config
 	struct TokenDefinition
 	{
 		std::string name; // id
-		std::string regex; // "regex" QUOTED
+		std::string regex; // QUOTED REGEX
 	};
 
 	// Enum

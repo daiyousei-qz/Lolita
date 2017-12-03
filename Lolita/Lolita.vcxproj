@@ -139,6 +139,7 @@
     <ClInclude Include="table.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="codegen.cpp" />
     <ClCompile Include="config.cpp" />
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="grammar-analytic.cpp" />

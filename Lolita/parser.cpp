@@ -14,17 +14,90 @@ namespace eds::loli
 	// Implementation of BasicParser
 	//
 
-	auto LookupCurrentState(const ParsingTable& table, vector<PdaStateId>& state_stack)
+	enum class ActionExecutionResult
 	{
-		return state_stack.empty()
-			? table.ParserInitialState()
-			: state_stack.back();
-	}
+		Hungry, Consumed, Error
+	};
 
-	Token BasicParser::LoadToken(string_view data, int offset) const
+	struct ParsingContext
 	{
-		const auto& table = GetParsingTable();
+		const BasicGenericParser& parser;
+		Arena& arena;
 
+		vector<PdaStateId> state_stack   = {};
+		vector<AstTypeWrapper> ast_stack = {};
+
+	public:
+		ParsingContext(const BasicGenericParser& parser, Arena& arena)
+			: parser(parser), arena(arena) { }
+
+		auto LookupCurrentState(const ParsingTable& table)
+		{
+			return state_stack.empty()
+				? table.ParserInitialState()
+				: state_stack.back();
+		}
+
+		ActionExecutionResult ExecuteAction(PdaActionShift action, int tok)
+		{
+			assert(tok != -1);
+
+			PrintFormatted("Shift state {}\n", action.destination.Value());
+			state_stack.push_back(action.destination);
+
+			return ActionExecutionResult::Consumed;
+		}
+
+		ActionExecutionResult ExecuteAction(PdaActionReduce action, int tok)
+		{
+			const auto& info	= parser.GetParserInfo();
+			const auto& manager = parser.GetProxyManager();
+			const auto& table	= parser.GetParsingTable();
+
+			const auto& production = info.Productions()[action.production];
+			PrintFormatted("Reduce {}\n", debug::ToString_Production(info, action.production));
+
+			// update state stack
+			const auto count = production.rhs.size();
+			for (auto i = 0; i < count; ++i)
+				state_stack.pop_back();
+
+			auto nonterm_id = distance(info.Variables().data(), production.lhs);
+			auto src_state = LookupCurrentState(table);
+			auto target_state = table.LookupGoto(src_state, nonterm_id);
+
+			state_stack.push_back(target_state);
+
+			// update ast stack
+			auto ref = ArrayRef<AstTypeWrapper>(ast_stack.data(), ast_stack.size()).TakeBack(count);
+			auto result = production.handle->Invoke(manager, arena, ref);
+
+			for (auto i = 0; i < count; ++i)
+				ast_stack.pop_back();
+
+			ast_stack.push_back(result);
+
+			// test if accepted
+			if (tok == -1 &&
+				state_stack.size() == 1 &&
+				production.lhs == &info.RootVariable())
+			{
+				return ActionExecutionResult::Consumed;
+			}
+			else
+			{
+				return ActionExecutionResult::Hungry;
+			}
+		}
+
+		ActionExecutionResult ExecuteAction(PdaActionError action, int tok)
+		{
+			return ActionExecutionResult::Error;
+		}
+	};
+
+	Token LoadToken(const ParsingTable& table, string_view data, int offset)
+	{
 		auto last_acc_len = 0;
 		auto last_acc_category = -1;
 
@@ -54,99 +127,41 @@ namespace eds::loli
 		}
 	}
 
-	void BasicParser::FeedParser(ParsingContext& ctx, int tok) const
+	void FeedParser(ParsingContext& ctx, int tok)
 	{
-		struct ActionVisitor
+		const auto& table = ctx.parser.GetParsingTable();
+		while (true)
 		{
-			const BasicParser& parser;
-			ParsingContext& ctx;
-			int tok;
-
-			bool hungry		= true;
-			bool error		= false;
-
-			ActionVisitor(const BasicParser& parser, ParsingContext& ctx, int tok)
-				: parser(parser), ctx(ctx), tok(tok) { }
-
-			void operator()(PdaActionShift action)
-			{
-				PrintFormatted("Shift state {}\n", action.destination.Value());
-				ctx.state_stack.push_back(action.destination);
-				hungry = false;
-			}
-			void operator()(PdaActionReduce action)
-			{
-				const auto& info = parser.GetParserInfo();
-				const auto& manager = parser.GetProxyManager();
-				const auto& table = parser.GetParsingTable();
-
-				const auto& production = info.Productions()[action.production];
-				PrintFormatted("Reduce {}\n", debug::ToString_Production(info, action.production));
-
-				// update state stack
-				const auto count = production.rhs.size();
-				for (auto i = 0; i < count; ++i)
-					ctx.state_stack.pop_back();
-
-				auto nonterm_id = distance(info.Variables().data(), production.lhs);
-				auto src_state = LookupCurrentState(table, ctx.state_stack);
-				auto target_state = table.LookupGoto(src_state, nonterm_id);
-
-				ctx.state_stack.push_back(target_state);
-
-				// update ast stack
-				auto ref = ArrayRef<AstTypeWrapper>(ctx.ast_stack.data(), ctx.ast_stack.size()).TakeBack(count);
-				auto result = production.handle->Invoke(manager, *ctx.arena, ref);
-
-				for (auto i = 0; i < count; ++i)
-					ctx.ast_stack.pop_back();
-
-				ctx.ast_stack.push_back(result);
-
-				// test if accepted
-				if (tok == -1 &&
-					ctx.state_stack.size() == 1 &&
-					production.lhs == &info.RootVariable())
-				{
-					hungry = false;
-				}
-			}
-			void operator()(PdaActionError action)
-			{
-				hungry = false;
-				error = true;
-			}
-		} visitor{ *this, ctx, tok };
-
-		const auto& table = GetParsingTable();
-		while (visitor.hungry)
-		{
-			auto cur_state = LookupCurrentState(table, ctx.state_stack);
+			auto cur_state = ctx.LookupCurrentState(table);
 			assert(cur_state.IsValid());
 
 			auto action = (tok != -1)
 				? table.LookupAction(cur_state, tok)
 				: table.LookupActionOnEof(cur_state);
 
-			visit(visitor, action);
+			auto action_result 
+				= visit([&](auto action) { return ctx.ExecuteAction(action, tok); }, action);
 
-			if (visitor.error)
+			if (action_result == ActionExecutionResult::Error)
 			{
 				throw ParserInternalError{ "parsing error" };
+			}
+			else if (action_result == ActionExecutionResult::Consumed)
+			{
+				break;
 			}
 		}
 	}
 
-	void BasicParser::Parse(string_view data) const
+	AstTypeWrapper BasicGenericParser::DoParse(Arena& arena, string_view data) const
 	{
 		int offset = 0;
-		ParsingContext ctx;
-		ctx.arena = std::make_unique<Arena>();
+		ParsingContext ctx{ *this, arena };
 
 		// tokenize and feed parser while not exhausted
 		while (offset < data.length())
 		{
-			auto tok = LoadToken(data, offset);
+			auto tok = LoadToken(GetParsingTable(), data, offset);
 
 			// update offset
 			offset = tok.offset + tok.length;
@@ -164,7 +179,8 @@ namespace eds::loli
 		// finalize parsing
 		FeedParser(ctx, -1);
 
-		// TODO: refine parser interface
-		auto result = ctx.ast_stack.front().Extract<TranslationUnit*>();
+		return ctx.ast_stack.front();
 	}
+
+
 }

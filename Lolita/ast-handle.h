@@ -39,9 +39,9 @@ namespace eds::loli
 		AstEnumGen(int value)
 			: value_(value) { }
 
-		AstTypeWrapper Invoke(AstTypeProxy& trait, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
+		AstTypeWrapper Invoke(AstTypeProxy& proxy, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
 		{
-			return trait.ConstructEnum(value_);
+			return proxy.ConstructEnum(value_);
 		}
 
 	private:
@@ -50,17 +50,17 @@ namespace eds::loli
 	class AstObjectGen : public detail::AllowDummyProxy<false>
 	{
 	public:
-		AstTypeWrapper Invoke(AstTypeProxy& trait, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
+		AstTypeWrapper Invoke(AstTypeProxy& proxy, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
 		{
-			return trait.ConstructObject(arena);
+			return proxy.ConstructObject(arena);
 		}
 	};	
 	class AstVectorGen : public detail::AllowDummyProxy<false>
 	{
 	public:
-		AstTypeWrapper Invoke(AstTypeProxy& trait, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
+		AstTypeWrapper Invoke(AstTypeProxy& proxy, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
 		{
-			return trait.ConstructVector(arena);
+			return proxy.ConstructVector(arena);
 		}
 	};
 	class AstItemSelector : public detail::AllowDummyProxy<true>
@@ -69,7 +69,7 @@ namespace eds::loli
 		AstItemSelector(int index)
 			: index_(index) { }
 
-		AstTypeWrapper Invoke(AstTypeProxy& trait, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
+		AstTypeWrapper Invoke(AstTypeProxy& proxy, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
 		{
 			return rhs.At(index_);
 		}
@@ -84,7 +84,7 @@ namespace eds::loli
 	class AstManipPlaceholder : public detail::AllowDummyProxy<true>
 	{
 	public:
-		void Invoke(AstTypeProxy& trait, AstTypeWrapper item, ArrayRef<AstTypeWrapper> rhs) const { }
+		void Invoke(AstTypeProxy& proxy, AstTypeWrapper item, ArrayRef<AstTypeWrapper> rhs) const { }
 	};
 	class AstObjectSetter : public detail::AllowDummyProxy<false>
 	{
@@ -98,11 +98,11 @@ namespace eds::loli
 		AstObjectSetter(const std::vector<SetterPair>& setters)
 			: setters_(setters) { }
 
-		void Invoke(AstTypeProxy& trait, AstTypeWrapper obj, ArrayRef<AstTypeWrapper> rhs) const
+		void Invoke(AstTypeProxy& proxy, AstTypeWrapper obj, ArrayRef<AstTypeWrapper> rhs) const
 		{
 			for (auto setter : setters_)
 			{
-				trait.AssignField(obj, setter.cordinal, rhs.At(setter.index));
+				proxy.AssignField(obj, setter.cordinal, rhs.At(setter.index));
 			}
 		}
 
@@ -115,11 +115,11 @@ namespace eds::loli
 		AstVectorMerger(const std::vector<int>& indices)
 			: indices_(indices) { }
 
-		void Invoke(AstTypeProxy& trait, AstTypeWrapper vec, ArrayRef<AstTypeWrapper> rhs) const
+		void Invoke(AstTypeProxy& proxy, AstTypeWrapper vec, ArrayRef<AstTypeWrapper> rhs) const
 		{
 			for (auto index : indices_)
 			{
-				trait.InsertElement(vec, rhs.At(index));
+				proxy.InsertElement(vec, rhs.At(index));
 			}
 		}
 
@@ -160,14 +160,14 @@ namespace eds::loli
 
 		AstTypeWrapper Invoke(const AstTypeProxyManager& manager, Arena& arena, ArrayRef<AstTypeWrapper> rhs) const
 		{
-			auto& trait = AcceptDummyTrait()
+			auto& proxy = AcceptDummyTrait()
 				? manager.DummyProxy()
 				: manager.Lookup(klass_);
 
-			auto gen_visitor = [&](const auto& gen) { return gen.Invoke(trait, arena, rhs); };
+			auto gen_visitor = [&](const auto& gen) { return gen.Invoke(proxy, arena, rhs); };
 			auto result = std::visit(gen_visitor, gen_handle_);
 
-			auto manip_visitor = [&](const auto& manip) { manip.Invoke(trait, result, rhs); };
+			auto manip_visitor = [&](const auto& manip) { manip.Invoke(proxy, result, rhs); };
 			std::visit(manip_visitor, manip_handle_);
 
 			return result;

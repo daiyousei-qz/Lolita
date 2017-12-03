@@ -28,33 +28,33 @@ namespace eds::loli
 	class DummyAstTypeProxy : public AstTypeProxy
 	{
 	private:
-		static const auto& GetErrorMessage()
+		[[noreturn]]
+		static void Throw()
 		{
-			static std::string msg = "dummy proxy cannot perform any ast operation";
-			return msg;
+			throw ParserInternalError{ "dummy proxy cannot perform any ast operation" };
 		}
 
 	public:
 		AstTypeWrapper ConstructEnum(int value) override
 		{
-			throw ParserInternalError{ GetErrorMessage() };
+			Throw();
 		}
 		AstTypeWrapper ConstructObject(Arena&) override
 		{
-			throw ParserInternalError{ GetErrorMessage() };
+			Throw();
 		}
 		AstTypeWrapper ConstructVector(Arena&) override
 		{
-			throw ParserInternalError{ GetErrorMessage() };
+			Throw();
 		}
 
-		void AssignField(AstTypeWrapper node, int codinal, AstTypeWrapper value) override
+		void AssignField(AstTypeWrapper obj, int codinal, AstTypeWrapper value) override
 		{
-			throw ParserInternalError{ GetErrorMessage() };
+			Throw();
 		}
 		void InsertElement(AstTypeWrapper vec, AstTypeWrapper node) override
 		{
-			throw ParserInternalError{ GetErrorMessage() };
+			Throw();
 		}
 	};
 
@@ -117,14 +117,14 @@ namespace eds::loli
 	public:
 		AstTypeProxy& Lookup(const std::string& klass) const
 		{
-			auto it = traits.find(klass);
-			if (it != traits.end())
+			auto it = proxies.find(klass);
+			if (it != proxies.end())
 			{
 				return *it->second;
 			}
 			else
 			{
-				throw ParserInternalError{ "specific trait not found" };
+				throw ParserInternalError{ "specific type proxy not found" };
 			}
 		}
 
@@ -134,7 +134,7 @@ namespace eds::loli
 			static_assert(std::is_base_of_v<AstTypeProxy, Proxy>);
 			static_assert(std::is_default_constructible_v<Proxy>);
 
-			traits.insert_or_assign(klass, std::make_unique<Proxy>());
+			proxies.insert_or_assign(klass, std::make_unique<Proxy>());
 		}
 
 		AstTypeProxy& DummyProxy() const
@@ -144,8 +144,8 @@ namespace eds::loli
 		}
 
 	private:
-		using TraitLookup = std::unordered_map<std::string, std::unique_ptr<AstTypeProxy>>;
+		using ProxyLookup = std::unordered_map<std::string, std::unique_ptr<AstTypeProxy>>;
 
-		TraitLookup traits;
+		ProxyLookup proxies;
 	};
 }

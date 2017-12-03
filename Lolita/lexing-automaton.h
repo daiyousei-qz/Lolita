@@ -20,7 +20,7 @@ namespace eds::loli::lexing
 			: id(id), acc_category(acc_category) { }
 	};
 
-	class LexingAutomaton : NonCopyable
+	class LexingAutomaton : NonCopyable, NonMovable
 	{
 	public:
 		// Accessor

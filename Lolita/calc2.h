@@ -6,7 +6,6 @@
 
 namespace eds::loli
 {
-
 	// Forward declarations
 	//
 
@@ -222,6 +221,7 @@ namespace eds::loli
 	{
 		AstVector<FuncDecl>* functions;
 	};
+
 
 	// Proxy definitions
 	//

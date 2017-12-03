@@ -64,14 +64,14 @@ namespace eds::loli
 					 const lexing::LexingAutomaton& dfa,
 					 const parsing::ParsingAutomaton& pda);
 
-		int TokenCount() const { return token_num_; }
-		int TerminalCount() const { return term_num_; }
-		int NonterminalCount() const { return nonterm_num_; }
+		int TokenCount()		const { return token_num_;   }
+		int TerminalCount()		const { return term_num_;    }
+		int NonterminalCount()	const { return nonterm_num_; }
 
-		int DfaStateCount() const { return dfa_state_num_; }
-		int PdaStateCount() const { return pda_state_num_; }
+		int DfaStateCount()		const { return dfa_state_num_; }
+		int PdaStateCount()		const { return pda_state_num_; }
 
-		DfaStateId LexerInitialState() const { return DfaStateId{ 0 }; }
+		DfaStateId LexerInitialState()	const { return DfaStateId{ 0 }; }
 		PdaStateId ParserInitialState() const { return PdaStateId{ 0 }; }
 
 		DfaStateId LookupDfaTransition(DfaStateId src, int ch) const

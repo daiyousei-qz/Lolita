@@ -15,8 +15,6 @@ namespace eds::loli::parsing
 	// Implmentation of ParsingAutomaton
 	//
 
-	// by convention, if production is set nullptr
-	// it's an imaginary root production
 	struct ParsingItem
 	{
 	public:
@@ -218,20 +216,14 @@ namespace eds::loli::parsing
 				if (dest_item_set.empty()) return;
 
 				// compute target state
-				ParsingState* dest_state;
-				auto iter = state_lookup.find(dest_item_set);
-				if (iter != state_lookup.end())
-				{
-					dest_state = iter->second;
-				}
-				else
+				auto dest_state = state_lookup[dest_item_set];
+				if (dest_state == nullptr)
 				{
 					// if new_state is not recorded in states, create one
 					dest_state = pda->NewState();
 
-					// TODO: use move here?
-					state_lookup.insert_or_assign(dest_item_set, dest_state);
 					unprocessed.push_back(dest_item_set);
+					state_lookup.insert_or_assign(dest_item_set, dest_state);
 				}
 
 				// add transition

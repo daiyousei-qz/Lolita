@@ -225,6 +225,7 @@ namespace eds::loli
 		ParserBootstrapInfo(ParserBootstrapContext data)
 			: ctx_(std::move(data)) { }
 
+		// Assumes last variable is root
 		const auto& RootVariable()  const { return ctx_.variables.back(); }
 
 		const auto& Enums()			const { return ctx_.enums; }

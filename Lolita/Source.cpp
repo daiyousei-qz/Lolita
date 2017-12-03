@@ -35,7 +35,7 @@ int main()
 
 	auto proxy_manager = CreateAstTypeProxyManager();
 
-	auto parser = BasicParser{ move(parsing_info), move(proxy_manager), move(parsing_table) };
+	auto parser = BasicGenericParser{ move(parsing_info), move(proxy_manager), move(parsing_table) };
 
 	auto data = 
 		"func add(x: int, y: int) -> int { return x+y; }\n"

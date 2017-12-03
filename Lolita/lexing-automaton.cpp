@@ -273,7 +273,7 @@ namespace eds::loli::lexing
 		for (deque<RegexPositionSet> unprocessed{ initial_state }; !unprocessed.empty(); unprocessed.pop_front())
 		{
 			const auto& src_set = unprocessed.front();
-			const auto src_state = dfa_state_lookup[src_set];
+			const auto src_state = dfa_state_lookup.at(src_set);
 
 			// for each input symbol
 			for (int ch = 0; ch < 128; ++ch)
@@ -284,23 +284,19 @@ namespace eds::loli::lexing
 				// skip empty state, that's invalid
 				if (dest_set.empty()) continue;
 
-				// if it's a new state, register and queue it
-				// also, we have to find out it's allocated id
-				DfaState* dest_state;
-				if (auto it = dfa_state_lookup.find(dest_set); it != dfa_state_lookup.end())
-				{
-					dest_state = it->second;
-				}
-				else
+				// find the correct state object
+				auto& dest_state = dfa_state_lookup[dest_set];
+
+				// in case state is not yet created, make one and queue the set
+				if (dest_state == nullptr)
 				{
 					// find out accepting category, if any
 					auto acc_term = ComputeAcceptCategory(ast.acc_lookup, dest_set);
 
-					// allocate state id
+					// allocate state object
 					dest_state = dfa->NewState(acc_term);
 
-					// register and queue the lately created state
-					dfa_state_lookup[dest_set] = dest_state;
+					// register and queue it
 					unprocessed.push_back(dest_set);
 				}
 
