@@ -113,15 +113,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Lolita\Lolita.vcxproj">
+      <Project>{d97b09ee-cd21-4ecb-ac07-1b010cf59867}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="testheader.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Lolita\Lolita.vcxproj">
-      <Project>{d97b09ee-cd21-4ecb-ac07-1b010cf59867}</Project>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

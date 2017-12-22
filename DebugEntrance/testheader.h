@@ -7,7 +7,6 @@
 
 namespace eds::loli
 {
-
     // Referred Names
     //
     using eds::loli::ast::BasicAstToken;

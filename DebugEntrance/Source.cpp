@@ -1,6 +1,3 @@
-//#define CATCH_CONFIG_MAIN
-//#include "catch.hpp"
-
 #include "testheader.h"
 #include "text\format.h"
 #include <memory>
