@@ -10,6 +10,7 @@ namespace eds::loli::config
 {
 	// Type
 	//
+
 	struct QualType
 	{
 		std::string name; // id
@@ -51,7 +52,7 @@ namespace eds::loli::config
 	struct NodeDefinition
 	{
 		std::string name; // id
-		std::string parent; // ""
+		std::string parent; // "" or id
 
 		std::vector<NodeMember> members;
 	};
@@ -62,19 +63,19 @@ namespace eds::loli::config
 	struct RuleSymbol
 	{
 		std::string symbol; // id
-		std::string assign; // & or ! or id
+		std::string assign; // "&" or "!" or id
 	};
 	struct RuleItem
 	{
 		std::vector<RuleSymbol> rhs;
-		std::optional<QualType> klass_hint;
+		std::optional<QualType> klass_hint; // for enum hint, qualifier should be empty
 	};
 
 	struct RuleDefinition
 	{
 		QualType type;
 
-		std::string lhs;
+		std::string name; // id
 		std::vector<RuleItem> items;
 	};
 
@@ -85,12 +86,11 @@ namespace eds::loli::config
 	{
 		std::vector<TokenDefinition> tokens;
 		std::vector<TokenDefinition> ignored_tokens;
-		std::vector<EnumDefinition> enums;
-		std::vector<BaseDefinition> bases;
-		std::vector<NodeDefinition> nodes;
-		std::vector<RuleDefinition> rules;
+		std::vector<EnumDefinition>  enums;
+		std::vector<BaseDefinition>  bases;
+		std::vector<NodeDefinition>  nodes;
+		std::vector<RuleDefinition>  rules;
 	};
 
-	std::unique_ptr<ParsingConfiguration> LoadConfig(const char* data);
-	// TODO: void ValidateConfig(const Config& config);
+	std::unique_ptr<ParsingConfiguration> ParseConfig(const std::string& data);
 }

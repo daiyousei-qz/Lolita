@@ -1,46 +1,51 @@
-#include "regex.h"
-#include "arena.hpp"
-#include "text\text-utils.hpp"
+#include "lolita/core/regex.h"
+#include "lolita/core/errors.h"
+#include "text/text-utils.h"
 #include <optional>
 
 using namespace std;
 using namespace eds;
 using namespace eds::text;
 
-namespace eds::loli::lexing
+namespace eds::loli::regex
 {
-	// Parsing
+	// Error Helpers
 	//
 
-	void RegexParsingAssert(bool condition, zstring msg)
+	void RegexParsingAssert(bool condition, const string& msg)
 	{
 		if (!condition)
 		{
-			throw msg;
+			throw ParserConstructionError(msg);
 		}
 	}
 
-	static constexpr auto kMsgUnexpectedEof = "unexpected eof";
-	static constexpr auto kMsgEmptyExpressionBody = "empty expression body is not allowed";
-	static constexpr auto kMsgInvalidClosure = "invalid closure is not allowed";
+	static constexpr auto kMsgUnexpectedEof			= "regex: unexpected eof";
+	static constexpr auto kMsgEmptyExpressionBody	= "regex: empty expression body is not allowed";
+	static constexpr auto kMsgInvalidClosure		= "regex: invalid closure is not allowed";
 
-	// merge expressions in seq into any in cascade(ConcatenationExpr)
-	void MergeSequence(Arena& arena, RegexExprVec& any, RegexExprVec& seq)
+	using RegexExprVec = vector<RegexExpr::Ptr>;
+
+	// merge expressions in seq into any in cascade(SequenceExpr)
+	void MergeSequence(RegexExprVec& any, RegexExprVec& seq)
 	{
 		assert(!seq.empty());
 
-		if (seq.size() == 1)
+		auto vec = RegexExprVec(seq.size());
+		move(seq.begin(), seq.end(), vec.begin()), seq.clear();
+
+		if (vec.size() == 1)
 		{
-			any.push_back(seq.front());
+			any.push_back(
+				move(vec.front())
+			);
 		}
 		else
 		{
 			any.push_back(
-				arena.Construct<SequenceExpr>(seq)
+				make_unique<SequenceExpr>(move(vec))
 			);
 		}
-
-		seq.clear();
 	}
 
 	int EscapeRawCharacter(int ch)
@@ -61,8 +66,6 @@ namespace eds::loli::lexing
 			return '\f';
 		case 'n':
 			return '\n';
-		case 'e':
-			return '\e';
 		default:
 			return ch;
 		}
@@ -88,13 +91,14 @@ namespace eds::loli::lexing
 		return result;
 	}
 
-	RegexExprPtr ParseEscapedExpr(Arena& arena, zstring& str)
+	RegexExpr::Ptr ParseEscapedExpr(zstring& str)
 	{
 		auto rg = CharRange{ EscapeRawCharacter(Consume(str)) };
-		return arena.Construct<EntityExpr>(rg);
+
+		return make_unique<EntityExpr>(rg);
 	}
 
-	RegexExprPtr ParseCharClass(Arena& arena, zstring& str)
+	RegexExpr::Ptr ParseCharClass(zstring& str)
 	{
 		// ASSUME leading '[' pre-consumed
 
@@ -212,15 +216,15 @@ namespace eds::loli::lexing
 		RegexExprVec result;
 		for (auto rg : merged_ranges)
 		{
-			result.push_back(arena.Construct<EntityExpr>(rg));
+			result.push_back(make_unique<EntityExpr>(rg));
 		}
 
 		return result.size() == 1
-			? result.front()
-			: arena.Construct<ChoiceExpr>(result);
+			? move(result.front())
+			: make_unique<ChoiceExpr>(move(result));
 	}
 
-	RegexExprPtr ParseRegexInternal(Arena& arena, zstring& str, char term)
+	RegexExpr::Ptr ParseRegexInternal(zstring& str, char term)
 	{
 		RegexExprVec any{};
 		RegexExprVec seq{};
@@ -235,14 +239,15 @@ namespace eds::loli::lexing
 
 				allow_closure = false;
 
-				MergeSequence(arena, any, seq);
+				MergeSequence(any, seq);
 			}
 			else if (ConsumeIf(p, '('))
 			{
 				allow_closure = true;
 
-				auto expr = ParseRegexInternal(arena, p, ')');
-				seq.push_back(expr);
+				seq.push_back(
+					ParseRegexInternal(p, ')')
+				);
 			}
 			else if (*p == '*' || *p == '+' || *p == '?')
 			{
@@ -265,32 +270,36 @@ namespace eds::loli::lexing
 					break;
 				}
 
-				auto to_repeat = seq.back();
+				auto to_repeat = move(seq.back());
 				seq.pop_back();
 
-				auto expr = arena.Construct<ClosureExpr>(to_repeat, strategy);
-				seq.push_back(expr);
+				seq.push_back(
+					make_unique<ClosureExpr>(move(to_repeat), strategy)
+				);
 			}
 			else if (ConsumeIf(p, '['))
 			{
 				allow_closure = true;
 
-				auto expr = ParseCharClass(arena, p);
-				seq.push_back(expr);
+				seq.push_back(
+					ParseCharClass(p)
+				);
 			}
 			else if (ConsumeIf(p, '\\'))
 			{
 				allow_closure = true;
 
-				auto expr = ParseEscapedExpr(arena, p);
-				seq.push_back(expr);
+				seq.push_back(
+					ParseEscapedExpr(p)
+				);
 			}
 			else
 			{
 				allow_closure = true;
 
-				auto expr = arena.Construct<EntityExpr>(CharRange{ Consume(p) });
-				seq.push_back(expr);
+				seq.push_back(
+					make_unique<EntityExpr>(CharRange{ Consume(p) })
+				);
 			}
 		}
 
@@ -298,18 +307,17 @@ namespace eds::loli::lexing
 		RegexParsingAssert(!(term && !ConsumeIf(p, term)), kMsgUnexpectedEof);
 
 		str = p;
-		MergeSequence(arena, any, seq);
+		MergeSequence(any, seq);
 
 		return any.size() == 1
-			? any.front()
-			: arena.Construct<ChoiceExpr>(any);
+			? move(any.front())
+			: make_unique<ChoiceExpr>(move(any));
 	}
 
-	RootExpr* ParseRegex(Arena& arena, const string& regex)
+	unique_ptr<RootExpr> ParseRegex(const string& regex)
 	{
 		auto str = regex.c_str();
-		auto expr = ParseRegexInternal(arena, str, '\0');
 
-		return arena.Construct<RootExpr>(expr);
+		return make_unique<RootExpr>(ParseRegexInternal(str, '\0'));
 	}
 }

@@ -1,8 +1,7 @@
-#include "lexing-automaton.h"
-#include "regex.h"
-#include "arena.hpp"
-#include "ext/flat-set.hpp"
-#include "text/text-utils.hpp"
+#include "lolita/lexing/lexing-automaton.h"
+#include "lolita/core/regex.h"
+#include "ext/flat-set.h"
+#include "text/text-utils.h"
 #include <algorithm>
 #include <numeric>
 #include <map>
@@ -12,71 +11,71 @@
 using namespace std;
 using namespace eds;
 using namespace eds::text;
+using namespace eds::loli::regex;
 
 namespace eds::loli::lexing
 {
 	// Regex To Deterministic Finite Automata
 	//
+	using PositionLabel = const LabelledExpr*;
+	using PositionSet = FlatSet<PositionLabel>;
 
-	using RegexPositionLabel = const LabelledExpr*;
-	using RegexPositionSet = FlatSet<RegexPositionLabel>;
-	using AcceptCategoryLookup = unordered_map<RegexPositionLabel, int>;
+	using RootExprVec = vector<const RootExpr*>;
+	using AcceptCategoryLookup = unordered_map<PositionLabel, const TokenInfo*>;
 
-	struct RegexAst
+	struct JointRegexTree
 	{
-		RootExprVec regex_defs = {};
-
-		AcceptCategoryLookup acc_lookup = {};
+		RootExprVec          roots		= {};
+		AcceptCategoryLookup acc_lookup	= {};
 	};
 
 	struct RegexNodeInfo
 	{
 		// if the node can match empty string
-		bool nullable;
+		bool nullable = false;
 
 		// set of initial positions of the node
-		RegexPositionSet firstpos;
+		PositionSet firstpos = {};
 
 		// set of terminal positions of the node
-		RegexPositionSet lastpos;
+		PositionSet lastpos = {};
 	};
 
 	struct RegexEvalResult
 	{
 		// extra information for each node
-		unordered_map<RegexExprPtr, RegexNodeInfo> info_map;
+		unordered_map<const RegexExpr*, RegexNodeInfo> info_map = {};
 
 		// followpos set for each position
-		unordered_map<RegexPositionLabel, RegexPositionSet> followpos;
+		unordered_map<PositionLabel, PositionSet> followpos = {};
 	};
 
-	extern RootExpr* ParseRegex(Arena& arena, const string& str);
 
 	RegexEvalResult CollectRegexNodeInfo(const RootExprVec& defs)
 	{
 		struct Visitor : public RegexExprVisitor
 		{
-			unordered_map<RegexExprPtr, RegexNodeInfo> info_map{};
-			unordered_map<RegexPositionLabel, RegexPositionSet> followpos{};
+			unordered_map<const RegexExpr*, RegexNodeInfo> info_map{};
+			unordered_map<PositionLabel, PositionSet> followpos{};
 
 			const RegexNodeInfo* last_visited_info;
 
-			auto VisitChildren(const RegexExprVec& v)
+			auto VisitRegexExprVec(const vector<RegexExpr::Ptr>& v)
 			{
-				vector<const RegexNodeInfo*> children_info;
-				for (auto child : v)
+				vector<const RegexNodeInfo*> result;
+				for (const auto& expr : v)
 				{
-					child->Accept(*this);
+					expr->Accept(*this);
 
-					children_info.push_back(last_visited_info);
+					result.push_back(last_visited_info);
 				}
 
-				return children_info;
+				return result;
 			}
 
 			void UpdateNodeInfo(const RegexExpr& expr, RegexNodeInfo&& info)
 			{
-				last_visited_info = 
+				last_visited_info =
 					&(info_map[&expr] = forward<RegexNodeInfo>(info));
 			}
 
@@ -95,19 +94,19 @@ namespace eds::loli::lexing
 			}
 			void Visit(const EntityExpr& expr) override
 			{
-				UpdateNodeInfo(expr, { false, { &expr },{ &expr } });
+				UpdateNodeInfo(expr, { false,{ &expr },{ &expr } });
 			}
 			void Visit(const SequenceExpr& expr) override
 			{
-				auto children_info = VisitChildren(expr.Children());
+				auto children_info = VisitRegexExprVec(expr.Children());
 
 				// compute nullable
-				bool nullable = 
+				bool nullable =
 					all_of(children_info.begin(), children_info.end(),
 						   [](const auto& info) { return info->nullable; });
 
 				// compute firstpos
-				RegexPositionSet firstpos{};
+				PositionSet firstpos{};
 				for (auto child_info : children_info)
 				{
 					firstpos.insert(child_info->firstpos.begin(), child_info->firstpos.end());
@@ -117,7 +116,7 @@ namespace eds::loli::lexing
 				}
 
 				// compute lastpos
-				RegexPositionSet lastpos{};
+				PositionSet lastpos{};
 				for (auto it = children_info.rbegin(); it != children_info.rend(); ++it)
 				{
 					auto child_info = *it;
@@ -146,16 +145,16 @@ namespace eds::loli::lexing
 			}
 			void Visit(const ChoiceExpr& expr) override
 			{
-				auto children_info = VisitChildren(expr.Children());
+				auto children_info = VisitRegexExprVec(expr.Children());
 
 				// compute nullable
-				bool nullable = 
+				bool nullable =
 					any_of(children_info.begin(), children_info.end(),
-						   [](const auto& info) { return info->nullable; });
+						[](const auto& info) { return info->nullable; });
 
 				// compute firstpos and lastpos
-				RegexPositionSet firstpos{};
-				RegexPositionSet lastpos{};
+				PositionSet firstpos{};
+				PositionSet lastpos{};
 				for (auto child_info : children_info)
 				{
 					firstpos.insert(child_info->firstpos.begin(), child_info->firstpos.end());
@@ -185,45 +184,29 @@ namespace eds::loli::lexing
 
 		} visitor{};
 
-		for (auto p : defs)
+		for (const auto& root : defs)
 		{
-			p->Accept(visitor);
+			root->Accept(visitor);
 		}
 
 		return RegexEvalResult{ visitor.info_map, visitor.followpos };
 	}
 
-	RegexAst CreateRegexAst(Arena& arena, const std::vector<std::string>& defs)
+	auto ComputeInitialPositionSet(const RegexEvalResult& lookup, const RootExprVec& roots)
 	{
-		RegexAst ast;
-
-		int index = 0;
-		for (const auto& regex : defs)
+		PositionSet result;
+		for (const auto& expr : roots)
 		{
-			auto expr = ParseRegex(arena, regex);
-
-			ast.regex_defs.push_back(expr);
-			ast.acc_lookup.insert_or_assign(expr, index++);
-		}
-
-		return ast;
-	}
-
-	auto ComputeInitialPositionSet(const RegexEvalResult& lookup, const RootExprVec& regex_defs)
-	{
-		RegexPositionSet result;
-		for (const auto regex : regex_defs)
-		{
-			const auto& firstpos = lookup.info_map.at(regex).firstpos;
+			const auto& firstpos = lookup.info_map.at(expr).firstpos;
 			result.insert(firstpos.begin(), firstpos.end());
 		}
 
 		return result;
 	}
 
-	auto ComputeTargetPositionSet(const RegexEvalResult& lookup, const RegexPositionSet& src, int ch)
+	auto ComputeTargetPositionSet(const RegexEvalResult& lookup, const PositionSet& src, int ch)
 	{
-		RegexPositionSet target;
+		PositionSet target;
 		for (auto pos : src)
 		{
 			if (pos->TestPassage(ch))
@@ -236,16 +219,17 @@ namespace eds::loli::lexing
 		return target;
 	}
 
-	auto ComputeAcceptCategory(const AcceptCategoryLookup& lookup, const RegexPositionSet& set)
+	auto ComputeAcceptCategory(const AcceptCategoryLookup& lookup, const PositionSet& set)
 	{
 		// find out accepting category if any
-		auto result = -1;
+		const TokenInfo* result = nullptr;
 		for (const auto pos : set)
 		{
 			auto iter = lookup.find(pos);
 			if (iter != lookup.end())
 			{
-				if (result == -1 || result > iter->second)
+				// NOTE token with smaller id comes forehand and is prior
+				if (result == nullptr || result->Id() > iter->second->Id())
 				{
 					result = iter->second;
 				}
@@ -255,22 +239,18 @@ namespace eds::loli::lexing
 		return result;
 	}
 
-	unique_ptr<const LexingAutomaton> BuildDfaAutomaton(const std::vector<std::string>& defs)
+	unique_ptr<const LexingAutomaton> BuildDfaAutomaton(const JointRegexTree& trees)
 	{
-		// create ast
-		Arena arena;
-		auto ast = CreateRegexAst(arena, defs);
-
 		// analyze regex trees
-		auto eval_result = CollectRegexNodeInfo(ast.regex_defs);
+		auto eval_result = CollectRegexNodeInfo(trees.roots);
 
 		// NOTE a set of positions of regex node coresponds to a Dfa state
-		auto initial_state = ComputeInitialPositionSet(eval_result, ast.regex_defs);
+		auto initial_state = ComputeInitialPositionSet(eval_result, trees.roots);
 
 		auto dfa = make_unique<LexingAutomaton>();
-		auto dfa_state_lookup = map<RegexPositionSet, DfaState*>{ { initial_state, dfa->NewState() } };
+		auto dfa_state_lookup = map<PositionSet, DfaState*>{ { initial_state, dfa->NewState() } };
 
-		for (deque<RegexPositionSet> unprocessed{ initial_state }; !unprocessed.empty(); unprocessed.pop_front())
+		for (deque<PositionSet> unprocessed{ initial_state }; !unprocessed.empty(); unprocessed.pop_front())
 		{
 			const auto& src_set = unprocessed.front();
 			const auto src_state = dfa_state_lookup.at(src_set);
@@ -291,7 +271,7 @@ namespace eds::loli::lexing
 				if (dest_state == nullptr)
 				{
 					// find out accepting category, if any
-					auto acc_term = ComputeAcceptCategory(ast.acc_lookup, dest_set);
+					auto acc_term = ComputeAcceptCategory(trees.acc_lookup, dest_set);
 
 					// allocate state object
 					dest_state = dfa->NewState(acc_term);
@@ -312,5 +292,34 @@ namespace eds::loli::lexing
 	{
 		// TODO: finish this
 		throw 0;
+	}
+
+	auto PrepareRegexBatch(const ParsingMetaInfo& info)
+	{
+		JointRegexTree result;
+
+		auto process_token = [&](const TokenInfo& tok) {
+			// parse the regex
+			result.roots.push_back(tok.TreeDefinition().get());
+			// update acc lookup
+			result.acc_lookup[result.roots.back()] = &tok;
+		};
+
+		for (const auto& tok : info.Tokens())
+			process_token(tok);
+
+		for (const auto& tok : info.IgnoredTokens())
+			process_token(tok);
+
+		return result;
+	}
+
+	std::unique_ptr<const LexingAutomaton> BuildLexingAutomaton(const ParsingMetaInfo& info)
+	{
+		auto joint_regex = PrepareRegexBatch(info);
+		auto dfa = BuildDfaAutomaton(joint_regex);
+		
+		// TODO: optimize?
+		return dfa;
 	}
 }

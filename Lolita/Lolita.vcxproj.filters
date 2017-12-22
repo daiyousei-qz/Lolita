@@ -1,119 +1,87 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="External">
-      <UniqueIdentifier>{a77c6d6d-4613-477a-86f1-ce39f7a46ed6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Core">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
-    <Filter Include="Debug">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Lexing">
-      <UniqueIdentifier>{06a8df85-0259-4fa6-aa00-c5cce88fb4a3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Parsing">
-      <UniqueIdentifier>{be3d1abe-a8a7-4850-a219-9df07243e444}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Info">
-      <UniqueIdentifier>{e17f8eab-5abb-45cf-9ece-163371021286}</UniqueIdentifier>
-    </Filter>
+    <ClInclude Include="lolita\lolita-include.h" />
+    <ClInclude Include="lolita\ast\ast-basic.h">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\ast\ast-handle.h">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\ast\ast-proxy.h">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\core\codegen.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\core\config.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\ast\data-bundle.h">
+      <Filter>ast</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\debug\debug.h">
+      <Filter>debug</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\core\errors.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\parsing\grammar.h">
+      <Filter>parsing</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\lexing\lexing-automaton.h">
+      <Filter>lexing</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\core\regex.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\core\parsing-info.h">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\parsing\parsing-automaton.h">
+      <Filter>parsing</Filter>
+    </ClInclude>
+    <ClInclude Include="lolita\parser.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="table.hpp">
-      <Filter>External</Filter>
-    </ClInclude>
-    <ClInclude Include="basic.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="parsing-automaton.h">
-      <Filter>Parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="parsing-table.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="config.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="parser.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="grammar.h">
-      <Filter>Parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="grammar-analytic.h">
-      <Filter>Parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="regex.h">
-      <Filter>Lexing</Filter>
-    </ClInclude>
-    <ClInclude Include="lexing-automaton.h">
-      <Filter>Lexing</Filter>
-    </ClInclude>
-    <ClInclude Include="parsing-bootstrap.h">
-      <Filter>Info</Filter>
-    </ClInclude>
-    <ClInclude Include="ast-basic.h">
-      <Filter>Info</Filter>
-    </ClInclude>
-    <ClInclude Include="ast-handle.h">
-      <Filter>Info</Filter>
-    </ClInclude>
-    <ClInclude Include="debug.h">
-      <Filter>Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="calc2.h">
-      <Filter>Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="ast-proxy.h">
-      <Filter>Info</Filter>
-    </ClInclude>
-    <ClInclude Include="lolita-include.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="codegen.h">
-      <Filter>Core</Filter>
-    </ClInclude>
+    <ClCompile Include="lolita\core\config.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="lolita\debug\debug.cpp">
+      <Filter>debug</Filter>
+    </ClCompile>
+    <ClCompile Include="lolita\parsing\grammar.cpp">
+      <Filter>parsing</Filter>
+    </ClCompile>
+    <ClCompile Include="lolita\lexing\lexing-automaton.cpp">
+      <Filter>lexing</Filter>
+    </ClCompile>
+    <ClCompile Include="lolita\core\parsing-info.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="lolita\core\regex.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="lolita\parsing\parsing-automaton.cpp">
+      <Filter>parsing</Filter>
+    </ClCompile>
+    <ClCompile Include="lolita\parser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Source.cpp">
-      <Filter>Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="parsing-automaton.cpp">
-      <Filter>Parsing</Filter>
-    </ClCompile>
-    <ClCompile Include="parsing-table.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="config.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="grammar.cpp">
-      <Filter>Parsing</Filter>
-    </ClCompile>
-    <ClCompile Include="grammar-analytic.cpp">
-      <Filter>Parsing</Filter>
-    </ClCompile>
-    <ClCompile Include="regex.cpp">
-      <Filter>Lexing</Filter>
-    </ClCompile>
-    <ClCompile Include="lexing-automaton.cpp">
-      <Filter>Lexing</Filter>
-    </ClCompile>
-    <ClCompile Include="parsing-bootstrap.cpp">
-      <Filter>Info</Filter>
-    </ClCompile>
-    <ClCompile Include="debug.cpp">
-      <Filter>Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="parser.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="codegen.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
+    <Filter Include="ast">
+      <UniqueIdentifier>{0c8bb4c5-b5b7-4f15-98b4-13832b147980}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core">
+      <UniqueIdentifier>{2b3e83eb-f533-4d7e-9558-1dacaad77800}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="debug">
+      <UniqueIdentifier>{9730928f-5480-4969-a760-dbfeb2cf25f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="parsing">
+      <UniqueIdentifier>{024be6cf-23f5-4bfa-ba24-fbccc24161dc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lexing">
+      <UniqueIdentifier>{8af62f7a-dd92-43af-be34-1dca6411f348}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

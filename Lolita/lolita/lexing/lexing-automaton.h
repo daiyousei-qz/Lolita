@@ -1,6 +1,6 @@
 #pragma once
-#include "regex.h"
-#include "parsing-bootstrap.h"
+#include "lolita/core/regex.h"
+#include "lolita/core/parsing-info.h"
 #include <functional>
 #include <optional>
 
@@ -12,12 +12,12 @@ namespace eds::loli::lexing
 	struct DfaState
 	{
 		int id;
-		int acc_category;
+		const TokenInfo* acc_token;
 		std::unordered_map<int, DfaState*> transitions;
 
 	public:
-		DfaState(int id, int acc_category)
-			: id(id), acc_category(acc_category) { }
+		DfaState(int id, const TokenInfo* acc_token = nullptr)
+			: id(id), acc_token(acc_token) { }
 	};
 
 	class LexingAutomaton : NonCopyable, NonMovable
@@ -38,7 +38,7 @@ namespace eds::loli::lexing
 		// Construction
 		//
 
-		DfaState* NewState(int acc_category = -1)
+		DfaState* NewState(const TokenInfo* acc_category = nullptr)
 		{
 			int id = StateCount();
 
@@ -48,6 +48,7 @@ namespace eds::loli::lexing
 		}
 		void NewTransition(DfaState* src, DfaState* target, int ch)
 		{
+			assert(ch >= 0 && ch < 128);
 			assert(src->transitions.count(ch) == 0);
 			src->transitions.insert_or_assign(ch, target);
 		}
@@ -56,6 +57,5 @@ namespace eds::loli::lexing
 		std::vector<std::unique_ptr<DfaState>> states_;
 	};
 
-	std::unique_ptr<const LexingAutomaton> BuildDfaAutomaton(const std::vector<std::string>& regex);
-	std::unique_ptr<const LexingAutomaton> OptimizeLexingAutomaton(const LexingAutomaton& atm);
+	std::unique_ptr<const LexingAutomaton> BuildLexingAutomaton(const ParsingMetaInfo& info);
 }

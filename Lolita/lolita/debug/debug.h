@@ -1,8 +1,8 @@
 #pragma once
-#include "parsing-info.h"
-#include "lexing-automaton.h"
-#include "parsing-automaton.h"
-#include "grammar.h"
+#include "lolita/core/parsing-info.h"
+#include "lolita/lexing/lexing-automaton.h"
+#include "lolita/parsing/parsing-automaton.h"
+#include "lolita/parsing/grammar.h"
 
 namespace eds::loli::debug
 {

@@ -5,6 +5,9 @@
 
 token s_assign = "=";
 token s_semi = ";";
+token s_colon = ":";
+token s_arrow = "->";
+token s_comma = ",";
 
 token s_asterisk = "\*";
 token s_slash = "/";
@@ -20,7 +23,7 @@ token s_gteq = ">=";
 token s_ls = "<";
 token s_lseq = "<=";
 token s_eq = "==";
-token s_neq = "!=";
+token s_ne = "!=";
 
 token s_ampamp = "&&";
 token s_barbar = "\|\|";
@@ -34,21 +37,22 @@ token s_rb = "}";
 # Keywords
 #
 
-
-#token k_val = "val";
-#token k_var = "var";
-token k_let = "let";
+token k_func = "func";
+token k_val = "val";
+token k_var = "var";
 token k_if = "if";
 token k_else = "else";
 token k_while = "while";
 token k_break = "break";
 token k_continue = "continue";
+token k_return = "return";
 
 token k_true = "true";
 token k_false = "false";
 
-token k_bool = "bool";
+token k_unit = "unit";
 token k_int = "int";
+token k_bool = "bool";
 
 # ===================================================
 # Component
@@ -83,19 +87,43 @@ rule BoolValue : BoolValue
     ;
 
 rule BoolLiteral : BoolLiteral
-    = BoolValue:content -> BoolLiteral
+    = BoolValue:content -> _
     ;
 
 rule IntLiteral : IntLiteral
-    = l_int:content -> IntLiteral
+    = l_int:content -> _
+    ;
+
+# ===================================================
+# Type
+#
+
+base Type;
+
+node NamedType : Type
+{
+    token name;
+}
+
+rule KeywordNamedType : NamedType
+    = k_unit:name -> _
+    = k_bool:name -> _
+    = k_int:name -> _
+    ;
+rule UserNamedType : NamedType
+    = id:name -> _
+    ;
+
+rule Type : Type
+    = KeywordNamedType!
+    = UserNamedType!
     ;
 
 # ===================================================
 # Expression
 #
 
-base Expression;
-
+# Operator enums
 enum BinaryOp
 {
     # multiplicative
@@ -134,12 +162,15 @@ rule ComparativeOp : BinaryOp
     = s_ls -> Ls
     = s_lseq -> LsEq
     = s_eq -> Eq
-    = s_neq -> NotEq
+    = s_ne -> NotEq
     ;
 rule LogicCompositionOp : BinaryOp
     = s_ampamp -> LogicAnd
     = s_barbar -> LogicOr
     ;
+
+# Expression
+base Expression;
 
 node BinaryExpr : Expression
 {
@@ -163,23 +194,23 @@ rule Factor : Expression
     = s_lp Expr! s_rp
     ;
 rule MultiplicativeExpr : BinaryExpr
-    = MultiplicativeExpr:lhs MultiplicativeOp:op Factor:rhs -> BinaryExpr
+    = MultiplicativeExpr:lhs MultiplicativeOp:op Factor:rhs -> _
     = Factor!
     ;
 rule AdditiveExpr : BinaryExpr
-    = AdditiveExpr:lhs AdditiveOp:op MultiplicativeExpr:rhs -> BinaryExpr
+    = AdditiveExpr:lhs AdditiveOp:op MultiplicativeExpr:rhs -> _
     = MultiplicativeExpr!
     ;
 rule BitwiseManipExpr : BinaryExpr
-    = BitwiseManipExpr:lhs BitwiseManipOp:op AdditiveExpr:rhs -> BinaryExpr
+    = BitwiseManipExpr:lhs BitwiseManipOp:op AdditiveExpr:rhs -> _
     = AdditiveExpr!
     ;
 rule ComparativeExpr : BinaryExpr
-    = ComparativeExpr:lhs ComparativeOp:op BitwiseManipExpr:rhs -> BinaryExpr
+    = ComparativeExpr:lhs ComparativeOp:op BitwiseManipExpr:rhs -> _
     = BitwiseManipExpr!
     ;
 rule LogicCompositionExpr : BinaryExpr
-    = LogicCompositionExpr:lhs LogicCompositionOp:op ComparativeExpr:rhs -> BinaryExpr
+    = LogicCompositionExpr:lhs LogicCompositionOp:op ComparativeExpr:rhs -> _
     = ComparativeExpr!
     ;
 
@@ -191,8 +222,7 @@ rule Expr : Expression
 # Statement
 #
 
-base Statement;
-
+# Helper enums
 enum JumpCommand
 {
     Break; Continue;
@@ -202,21 +232,27 @@ rule JumpCommand : JumpCommand
     = k_continue -> Continue
     ;
 
-rule Stmt : Statement
-    = LetStmt!
-    = JumpStmt!
-    = WhileStmt!
-    = IfElseStmt!
-    = CompoundStmt!
+enum VariableMutability
+{
+    Val; Var;
+}
+rule VariableMutability : VariableMutability
+    = k_val -> Val
+    = k_var -> Var
     ;
 
-node LetStmt : Statement
+# Decl
+base Statement;
+
+node VariableDeclStmt : Statement
 {
+    VariableMutability mut;
     token name;
+    Type type;
     Expression value;
 }
-rule LetStmt : LetStmt
-    = k_let id:name s_assign Expr:value s_semi -> LetStmt
+rule VariableDeclStmt : VariableDeclStmt
+    = VariableMutability:mut id:name s_colon Type:type s_assign Expr:value s_semi -> _
     ;
 
 node JumpStmt : Statement
@@ -224,26 +260,16 @@ node JumpStmt : Statement
     JumpCommand command;
 }
 rule JumpStmt : JumpStmt
-    = JumpCommand:command s_semi -> JumpStmt
+    = JumpCommand:command s_semi -> _
     ;
 
-node WhileStmt : Statement
+node ReturnStmt : Statement
 {
-    Expression pred;
-    Statement body;
+    Expression expr;
 }
-rule WhileStmt : WhileStmt
-    = k_while s_lp Expr:pred s_rp Stmt:body -> WhileStmt
-    ;
-
-node IfElseStmt : Statement
-{
-    Expression pred;
-    Statement positive;
-    Statement negative;
-}
-rule IfElseStmt : IfElseStmt
-    = k_if s_lp Expr:pred s_rp Stmt:positive k_else Stmt:negative -> IfElseStmt
+rule ReturnStmt : ReturnStmt
+    = k_return Expr:expr s_semi -> _
+    = k_return s_semi -> _
     ;
 
 node CompoundStmt : Statement
@@ -251,20 +277,114 @@ node CompoundStmt : Statement
     Statement'vec children;
 }
 rule StmtList : Statement'vec
-    = Stmt& -> Statement'vec
+    = Stmt& -> _
     = StmtList! Stmt&
     ;
-rule EmptyCompoundList : Statement'vec
-    = s_lb s_rb -> Statement'vec
+rule StmtListInBrace : Statement'vec
+    = s_lb s_rb -> _
+    = s_lb StmtList! s_rb
     ;
 rule CompoundStmt : CompoundStmt
-    = s_lb StmtList:children s_rb -> CompoundStmt
-    = EmptyCompoundList:children -> CompoundStmt
+    = StmtListInBrace:children -> _
+    ;
+
+# an AtomicStmt has absolutely no dangling else problem to solve
+rule AtomicStmt : Statement
+    = VariableDeclStmt!
+    = JumpStmt!
+    = ReturnStmt!
+    = CompoundStmt!
+    ;
+
+node WhileStmt : Statement
+{
+    Expression pred;
+    Statement body;
+}
+rule OpenWhileStmt : WhileStmt
+    = k_while s_lp Expr:pred s_rp OpenStmt:body -> _
+    ;
+rule CloseWhileStmt : WhileStmt
+    = k_while s_lp Expr:pred s_rp CloseStmt:body -> _
+    ;
+
+node ChoiceStmt : Statement
+{
+    Expression pred;
+    Statement positive;
+    Statement negative;
+}
+rule OpenChoiceStmt : ChoiceStmt
+    = k_if s_lp Expr:pred s_rp Stmt:positive -> ChoiceStmt
+    = k_if s_lp Expr:pred s_rp CloseStmt:positive k_else OpenStmt:negative -> _
+    ;
+rule CloseChoiceStmt : ChoiceStmt
+    = k_if s_lp Expr:pred s_rp CloseStmt:positive k_else CloseStmt:negative -> _
+    ;
+
+# OpenStmt is a statement contains at least one unpaired ChoiceStmt
+rule OpenStmt : Statement
+    = OpenWhileStmt!
+    = OpenChoiceStmt!
+    ;
+# CloseStmt is a statement inside of which all ChoiceStmt are paired with an else
+rule CloseStmt : Statement
+    = AtomicStmt!
+    = CloseWhileStmt!
+    = CloseChoiceStmt!
+    ;
+
+rule Stmt : Statement
+    = OpenStmt!
+    = CloseStmt!
+    ;
+    
+# ===================================================
+# Top-level Declarations
+#
+
+node TypedName
+{
+    token name;
+    Type type;
+}
+rule TypedName : TypedName
+    = id:name s_colon Type:type -> _
+    ;
+
+node FuncDecl
+{
+    token name;
+
+    TypedName'vec params;
+    Type ret;
+
+    Statement'vec body;
+}
+rule TypedNameList : TypedName'vec
+    = TypedName& -> _
+    = TypedNameList! s_comma TypedName&
+    ;
+rule FuncParameters : TypedName'vec
+    = s_lp s_rp -> _
+    = s_lp TypedNameList! s_rp
+    ;
+rule FuncDecl : FuncDecl
+    = k_func id:name FuncParameters:params s_arrow Type:ret StmtListInBrace:body -> _
     ;
 
 # ===================================================
 # Global Symbol
 #
-rule GlobalSymbol : Expression
-    = Stmt!
+node TranslationUnit
+{
+    FuncDecl'vec functions;
+}
+
+rule FuncDeclList : FuncDecl'vec
+    = FuncDecl& -> _
+    = FuncDeclList! FuncDecl&
+    ;
+rule TranslationUnit : TranslationUnit
+    = FuncDeclList:functions -> _
     ;

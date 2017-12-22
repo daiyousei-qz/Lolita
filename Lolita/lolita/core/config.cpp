@@ -1,7 +1,7 @@
-#include "config.h"
-#include "basic.h"
-#include "text\format.hpp"
-#include "text\text-utils.hpp"
+#include "lolita/core/config.h"
+#include "lolita/core/errors.h"
+#include "text/format.h"
+#include "text/text-utils.h"
 
 using namespace std;
 using namespace eds::text;
@@ -11,7 +11,7 @@ namespace eds::loli::config
 	struct ConfigParsingError : runtime_error
 	{
 		const char* pos;
-		
+
 	public:
 		ConfigParsingError(const char* pos, const string& msg)
 			: runtime_error(msg), pos(pos) { }
@@ -21,22 +21,22 @@ namespace eds::loli::config
 	{
 		if (!toggle) return;
 
-		bool have_ws = true;
-		while (have_ws)
+		bool halt = false;
+		while (!halt)
 		{
-			have_ws = false;
+			halt = true;
 
 			if (*s == '#')
 			{
-				while (*s && *s != '\n') 
+				while (*s && *s != '\n')
 					Consume(s);
 
-				have_ws = true;
+				halt = false;
 			}
 
-			while (*s && ConsumeIfAny(s, " \r\n\t"))
+			while (ConsumeIfAny(s, " \r\n\t"))
 			{
-				have_ws = true;
+				halt = false;
 			}
 		}
 	}
@@ -74,6 +74,7 @@ namespace eds::loli::config
 			buf.push_back(Consume(s));
 		}
 
+		// TODO: exclude keywords
 		return buf;
 	}
 
@@ -303,20 +304,20 @@ namespace eds::loli::config
 		}
 	}
 
-	unique_ptr<ParsingConfiguration> LoadConfig(const char* data)
+	unique_ptr<ParsingConfiguration> ParseConfig(const string& data)
 	{
 		auto result = make_unique<ParsingConfiguration>();
 
 		try
 		{
-			auto p = data;
+			auto p = data.c_str();
 			ParseConfigInternal(*result, p);
 		}
 		catch (const ConfigParsingError& err)
 		{
 			auto around_text = string{ err.pos }.substr(0, 20);
 			throw ParserConstructionError{
-				Format("Failed parsing config file:{} at around \"{}\".", err.what(), around_text)
+				Format("LoadConfig: Failed parsing config file:{} at around \"{}\".", err.what(), around_text)
 			};
 		}
 

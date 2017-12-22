@@ -1,5 +1,5 @@
-#include "debug.h"
-#include "text\format.h"
+#include "lolita/debug/debug.h"
+#include "text/format.h"
 #include <sstream>
 
 using namespace std;

@@ -25,12 +25,12 @@ node BinaryExpression : Expression
 }
 
 rule AddOp : BinaryOp
-    = "\+" -> Plus
-    = "-" -> Minus
+    = op_add -> Plus
+    = op_minus -> Minus
     ;
 rule MulOp : BinaryOp
-    = "\*" -> Asterisk
-    = "/" -> Slash
+    = op_asterisk -> Asterisk
+    = op_slash -> Slash
     ;
 
 rule Factor : Expression
@@ -48,9 +48,4 @@ rule AddExpr : Expression
 
 rule Expr : Expression
     = AddExpr!
-    ;
-
-rule ExprList : Expression'vec
-    = Expr& -> Expression'vec
-    = ExprList! comma Expr&
     ;

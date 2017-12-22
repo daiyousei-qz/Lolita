@@ -1,8 +1,10 @@
 #pragma once
+#include "lang-utils.h"
 #include <functional>
 #include <cassert>
+#include <memory>
 
-namespace eds::loli::lexing
+namespace eds::loli::regex
 {
 	// Basic Decl
 	//
@@ -16,9 +18,7 @@ namespace eds::loli::lexing
 	class ChoiceExpr;
 	class ClosureExpr;
 
-	using RegexExprPtr = const RegexExpr*;
-	using RootExprVec = std::vector<RootExpr*>;
-	using RegexExprVec = std::vector<const RegexExpr*>;
+	std::unique_ptr<RootExpr> ParseRegex(const std::string& regex);
 
 	// Data classes
 	//
@@ -38,10 +38,11 @@ namespace eds::loli::lexing
 		int Min() const { return min_; }
 		int Max() const { return max_; }
 
-		size_t Length() const { return max_ - min_; }
+		// Number of character included
+		int Length() const { return max_ - min_ + 1; }
 
-		bool Contain(int ch) const { return ch >= min_ && ch <= max_; }
-		bool Contain(CharRange range) const { return Contain(range.min_) && Contain(range.max_); }
+		bool Contain(int ch)		const { return ch >= min_ && ch <= max_; }
+		bool Contain(CharRange rg)	const { return rg.min_ >= min_ && rg.max_ <= max_; }
 
 	private:
 		int min_, max_;
@@ -70,16 +71,18 @@ namespace eds::loli::lexing
 	// Expression Model
 	//
 
-	class RegexExpr
+	class RegexExpr : NonCopyable, NonMovable
 	{
 	public:
+		using Ptr = std::unique_ptr<RegexExpr>;
+
 		RegexExpr() = default;
 		virtual ~RegexExpr() = default;
 
 		virtual void Accept(RegexExprVisitor&) const = 0;
 	};
 
-	// a LabelledExpr may attach a position id on conversion to DFA
+	// a LabelledExpr may be attached with a position id during DFA generation
 	class LabelledExpr
 	{
 	public:
@@ -93,16 +96,18 @@ namespace eds::loli::lexing
 	class RootExpr : public RegexExpr, public LabelledExpr
 	{
 	public:
-		RootExpr(RegexExprPtr child)
-			: child_(child) { }
+		RootExpr(RegexExpr::Ptr child)
+			: child_(std::move(child)) { }
 
-		auto Child() const { return child_; }
+		const auto& Child() const { return child_; }
 
 		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
+
+		// always fail as this is last position
 		bool TestPassage(int ch) const override { return false; }
 
 	private:
-		RegexExprPtr child_;
+		RegexExpr::Ptr child_;
 	};
 
 	class EntityExpr : public RegexExpr, public LabelledExpr
@@ -114,6 +119,8 @@ namespace eds::loli::lexing
 		auto Range() const { return range_; }
 
 		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
+
+		// pass if ch is contained in range_
 		bool TestPassage(int ch) const override { return range_.Contain(ch); }
 
 	private:
@@ -123,44 +130,50 @@ namespace eds::loli::lexing
 	class SequenceExpr : public RegexExpr
 	{
 	public:
-		SequenceExpr(const RegexExprVec& seq)
-			: seq_(seq) { }
+		SequenceExpr(std::vector<RegexExpr::Ptr> seq)
+			: seq_(std::move(seq))
+		{
+			assert(!seq_.empty());
+		}
 
 		const auto& Children() const { return seq_; }
 
 		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
 
 	private:
-		RegexExprVec seq_;
+		std::vector<RegexExpr::Ptr> seq_;
 	};
 
 	class ChoiceExpr : public RegexExpr
 	{
 	public:
-		ChoiceExpr(const RegexExprVec& any)
-			: any_(any) { }
+		ChoiceExpr(std::vector<RegexExpr::Ptr> any)
+			: any_(std::move(any)) 
+		{
+			assert(!any_.empty());
+		}
 
 		const auto& Children() const { return any_; }
 
 		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
 
 	private:
-		RegexExprVec any_;
+		std::vector<RegexExpr::Ptr> any_;
 	};
 
 	class ClosureExpr : public RegexExpr
 	{
 	public:
-		ClosureExpr(RegexExprPtr child, RepetitionMode strategy)
-			: child_(child), mode_(strategy) { }
+		ClosureExpr(RegexExpr::Ptr child, RepetitionMode strategy)
+			: child_(std::move(child)), mode_(strategy) { }
 
-		auto Child() const { return child_; }
-		auto Mode() const { return mode_; }
+		const auto& Child() const { return child_; }
+		const auto& Mode()  const { return mode_; }
 
 		void Accept(RegexExprVisitor& v) const override { v.Visit(*this); }
 
 	public:
-		RegexExprPtr child_;
+		RegexExpr::Ptr child_;
 		RepetitionMode mode_;
 	};
 }

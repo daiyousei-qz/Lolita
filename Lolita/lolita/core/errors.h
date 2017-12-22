@@ -1,13 +1,10 @@
 #pragma once
-#include "lang-utils.hpp"
+#include "lang-utils.h"
 #include <stdexcept>
 #include <string>
 
 namespace eds::loli
 {
-	template <typename T>
-	struct AlwaysFalse : std::false_type { };
-
 	struct ParserConstructionError : std::runtime_error
 	{
 	public:
