@@ -46,9 +46,7 @@ namespace eds::loli
 		void Assert(bool pred, const char* msg)
 		{
 			if (!pred)
-			{
 				throw ParserConstructionError{ msg };
-			}
 		}
 
 		void RegisterTypeInfo(TypeInfo* info)
@@ -93,6 +91,9 @@ namespace eds::loli
 			const auto& symbol_lookup = site_->symbol_lookup_;
 
 			const auto is_vec = var_type.IsVector();
+			const auto is_opt = var_type.IsOptional();
+			const auto is_qualified = is_vec || is_opt;
+
 			const auto is_enum = !is_vec && (var_type.type->IsEnum());
 			const auto is_obj = !is_vec && (var_type.type->IsKlass() || var_type.type->IsBase());
 
@@ -100,12 +101,22 @@ namespace eds::loli
 
 			// construct GenHandle
 			auto gen_handle = [&]() -> AstHandle::GenHandle {
-				if (rule.klass_hint)
+				if (rule.klass_hint) // generator
 				{
 					// has hint, i.e arrow-op
 					// a new node should be generated
 					const auto& hint = *rule.klass_hint;
 
+					// empty optional
+					if (is_opt)
+					{
+						if (hint.name == "_" || hint.qual == "opt")
+						{
+							return AstOptionalGen{};
+						}
+					}
+
+					// some value
 					if (is_enum)
 					{
 						// enum
@@ -119,7 +130,6 @@ namespace eds::loli
 						);
 
 						Assert(value < info->values_.size(), "ParserMetaInfo::Builder: invalid enum member");
-
 						return AstEnumGen{ value };
 					}
 					else
@@ -228,7 +238,7 @@ namespace eds::loli
 				}
 				else
 				{
-					assert(is_enum);
+					assert(is_opt || is_enum);
 
 					Assert(to_be_pushed.empty() && to_be_assigned.empty(),
 						   "ParserMetaInfo::Builder: unexpected opertion(assign or push)");

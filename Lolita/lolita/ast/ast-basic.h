@@ -8,12 +8,10 @@
 #include <variant>
 #include <optional>
 
-template<typename T> class Empty;
-
 namespace eds::loli::ast
 {
 	// =====================================================================================
-	// Node Top Type
+	// AstNode Top Type
 	//
 
 	struct AstLocationInfo
@@ -50,24 +48,28 @@ namespace eds::loli::ast
 	};
 
 	// =====================================================================================
-	// Basic Ast Types
+	// Basic Ast Node
 	//
 
 	class BasicAstToken : public AstNodeBase
 	{
 	public:
 		// make BasicAstToken default constructible
-		BasicAstToken()
-			: AstNodeBase(), tag_(-1) { }
+		BasicAstToken() = default;
 		BasicAstToken(int offset, int length, int tag)
 			: AstNodeBase(offset, length), tag_(tag) { }
 
-		const auto& Tag() const { return tag_; }
-
-		bool IsValid() const { return tag_ != -1; }
+		const auto& Tag() const
+		{
+			return tag_; 
+		}
+		bool IsValid() const 
+		{
+			return tag_ != -1; 
+		}
 
 	private:
-		int tag_;
+		int tag_ = -1;
 	};
 
 	template<typename EnumType>
@@ -79,13 +81,41 @@ namespace eds::loli::ast
 		using UnderlyingType = EnumType;
 
 		BasicAstEnum() = default;
-		BasicAstEnum(EnumType v) : value_(v) { }
+		BasicAstEnum(EnumType v) 
+			: value_(static_cast<int>(v)) { }
 
-		const auto& Value() const { return value_; }
+		int IntValue() const
+		{
+			return value_;
+		}
+		EnumType Value() const
+		{
+			return static_cast<EnumType>(value_); 
+		}
+		bool IsValid() const
+		{
+			return value_ != -1;
+		}
 
 	private:
-		EnumType value_ = {};
+		int value_ = -1;
 	};
+
+	template<typename EnumType>
+	inline bool operator==(const BasicAstEnum<EnumType>& lhs, const BasicAstEnum<EnumType>& rhs)
+	{
+		return lhs.Value() == rhs.Value();
+	}
+	template<typename EnumType>
+	inline bool operator==(const BasicAstEnum<EnumType>& lhs, const EnumType& rhs)
+	{
+		return lhs.Value() == rhs;
+	}
+	template<typename EnumType>
+	inline bool operator==(const EnumType& lhs, const BasicAstEnum<EnumType>& rhs)
+	{
+		return lhs == rhs.Value();
+	}
 
 	class BasicAstObject : public AstNodeBase
 	{
@@ -94,13 +124,93 @@ namespace eds::loli::ast
 		virtual ~BasicAstObject() { } // to generate vptr
 	};
 
-	// Declaration of Qualified Ast Type
+	// =====================================================================================
+	// Qualified Ast Node
 	//
-	template<typename T>
-	class AstVector;
 
 	template<typename T>
-	class AstOptional;
+	class AstVector : public AstNodeBase
+	{
+	public:
+		using ElementType = T;
+
+		const auto& Value() const
+		{
+			return container_;
+		}
+
+		bool Empty() const
+		{
+			return container_.empty();
+		}
+		int Size() const
+		{
+			return container_.size();
+		}
+
+		void PushBack(const T& value)
+		{
+			container_.push_back(value);
+		}
+
+	private:
+		std::vector<T> container_;
+	};
+
+	// default implenmentation for BasicAstToken and BasicAstEnum
+	template<typename T>
+	class AstOptional : public AstNodeBase
+	{
+	public:
+		using ElementType = T;
+
+		AstOptional() = default;
+
+		// inherit location info from inner element
+		AstOptional(const ElementType& value)
+			: AstNodeBase(value.Offset(), value.Length()), value_(value) { }
+
+		bool HasValue() const
+		{
+			return value.IsValid();
+		}
+
+		const auto& Value() const
+		{
+			assert(HasValue());
+			return value_;
+		}
+
+	private:
+		ElementType value_ = {};
+	};
+
+	// specialized implementation for BasicAstObject*
+	template<typename T>
+	class AstOptional<T*> : public AstNodeBase
+	{
+	public:
+		using ElementType = T*;
+
+		AstOptional() = default;
+
+		// inherit location info from inner element
+		AstOptional(const ElementType& obj)
+			: AstNodeBase(obj->Offset(), obj->Length()), value_(obj) { }
+
+		bool HasValue() const
+		{
+			return value_ != nullptr;
+		}
+
+		const auto& Value() const
+		{
+			assert(HasValue());
+			return value_;
+		}
+	private:
+		T* value_ = nullptr;
+	};
 
 	// =====================================================================================
 	// AstType Concept Checkers
@@ -126,11 +236,20 @@ namespace eds::loli::ast
 		//
 		// NOTE AstItem is always pod
 		template<typename U>
-		struct IsQualifiedAstItem : std::false_type { };
+		struct IsAstVectorPtr : std::false_type { };
 		template<typename U>
-		struct IsQualifiedAstItem<AstVector<U>*> : std::true_type { };
+		struct IsAstVectorPtr<AstVector<U>*> : std::true_type { };
+
 		template<typename U>
-		struct IsQualifiedAstItem<AstOptional<U>> : std::true_type { };
+		struct IsAstOptional : std::false_type { };
+		template<typename U>
+		struct IsAstOptional<AstOptional<U>> : std::true_type { };
+
+		static constexpr auto is_astitem_token		= is_ast_token;
+		static constexpr auto is_astitem_enum		= is_ast_enum;
+		static constexpr auto is_astitem_object		= type::convertible_to<BasicAstObject*> && !type::same_to<nullptr_t>;
+		static constexpr auto is_astitem_vector		= type::generic_check<IsAstVectorPtr>;
+		static constexpr auto is_astitem_optional	= type::generic_check<IsAstOptional>;
 
 		template<typename T>
 		inline constexpr bool IsAstItem()
@@ -138,10 +257,11 @@ namespace eds::loli::ast
 			using namespace eds::type;
 
 			return Constraint<T>(
-				is_ast_token ||
-				is_ast_enum ||
-				(convertible_to<BasicAstObject*> && !same_to<nullptr_t>) ||
-				generic_check<IsQualifiedAstItem>
+				is_astitem_token ||
+				is_astitem_enum ||
+				is_astitem_object ||
+				is_astitem_vector ||
+				is_astitem_optional
 			) && std::is_trivially_destructible_v<T>;
 		}
 	}
@@ -205,51 +325,12 @@ namespace eds::loli::ast
 	};
 
 	// =====================================================================================
-	// Enhancing Ast Nodes
-	//
-
-	template<typename T>
-	class AstVector : public AstNodeBase
-	{
-	public:
-		const auto& Data() const
-		{
-			return container_;
-		}
-
-		void Push(const T& value)
-		{
-			container_.push_back(value);
-		}
-
-	private:
-		std::vector<T> container_;
-	};
-
-	template<typename T>
-	class AstOptional : public AstNodeBase
-	{
-	public:
-		bool HasValue() const
-		{
-			return value_.has_value();
-		}
-
-		const auto& Data() const
-		{
-			assert(HasValue());
-			return *value_;
-		}
-
-	private:
-		// TODO: make use of null value for pointer
-		std::optional<T> value_ = {};
-	};
-
-	// =====================================================================================
 	// AstItem
 	//
 
+	// TODO: add a backdoor for optional type: when extracted as an optional, element type should be checked as well
+
+	// NOTE an AstItem is always a POD type, copying is cheap
 	class AstItemWrapper
 	{
 	public:
@@ -270,15 +351,23 @@ namespace eds::loli::ast
 			type_ = nullptr;
 		}
 
+		template<typename T>
+		bool DetectInstance()
+		{
+			AssertAstItem<T>();
+
+			return type_ == GetTypeMetaInfo<T>();
+		}
+
 		template <typename T>
 		T Extract()
 		{
 			using namespace eds::type;
 
-			if constexpr(Constraint<T>(convertible_to<BasicAstObject*> && !same_to<nullptr_t>))
+			if constexpr(Constraint<T>(detail::is_astitem_object))
 			{
 				// TODO: to improve the performance, an internal heirachy examination machanism
-				//       could be implemented via factorization as scale is always controllable
+				//       could be implemented via factorization as scale of our heirachy is always controllable
 				// SEE ALSO: http://www.stroustrup.com/fast_dynamic_casting.pdf
 
 				auto result = dynamic_cast<T>(RefAs<BasicAstObject*, false>());
@@ -287,6 +376,17 @@ namespace eds::loli::ast
 					ThrowTypeMismatch();
 
 				return result;
+			}
+			else if constexpr(Constraint<T>(detail::is_astitem_optional))
+			{
+				if (DetectInstance<T>())
+				{
+					return RefAs<T, false>();
+				}
+				else
+				{
+					return Extract<typename T::ElementType>();
+				}
 			}
 			else
 			{
@@ -321,19 +421,23 @@ namespace eds::loli::ast
 		}
 
 	private:
-		template <typename T, bool ForceType>
-		T& RefAs()
+		template<typename T>
+		void AssertAstItem()
 		{
 			using namespace eds::type;
 			static_assert(detail::IsAstItem<T>(), "T must be a valid AstItem");
 			static_assert(Constraint<T>(!is_const && !is_volatile), "T should not be cv-qualified");
 			static_assert(Constraint<T>(!is_reference), "T should not be reference");
+		}
 
+		template<typename T, bool ForceType>
+		T& RefAs()
+		{
 			if constexpr(ForceType)
 			{
 				type_ = GetTypeMetaInfo<T>();
 			}
-			else if(type_ != GetTypeMetaInfo<T>())
+			else if(!DetectInstance<T>())
 			{
 				ThrowTypeMismatch();
 			}

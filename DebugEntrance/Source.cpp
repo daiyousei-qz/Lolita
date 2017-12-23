@@ -3,6 +3,7 @@
 #include <memory>
 #include <fstream>
 #include <iostream>
+#include <chrono>
 
 using namespace std;
 using namespace eds::text;
@@ -25,10 +26,10 @@ string ToString_Token(const BasicAstToken& tok)
 {
 	return kSample.substr(tok.Offset(), tok.Length());
 }
-string ToString_Type(const Type& type)
+string ToString_Type(Type* type)
 {
-	const auto& t = reinterpret_cast<const NamedType&>(type);
-	return ToString_Token(t.name());
+	const auto& t = reinterpret_cast<NamedType*>(type);
+	return ToString_Token(t->name());
 }
 string ToString_Expr(Expression* expr)
 {
@@ -51,15 +52,14 @@ void PrintStatement(Statement* s, int ident)
 		{
 			PrintIdent(ident);
 
-			auto mut = stmt.mut().Value() == VariableMutability::Val ? "mutable" : "immutable";
-			PrintFormatted("Variable Decl ({}) {} of {}\n", mut, ToString_Token(stmt.name()), ToString_Type(*stmt.type()));
+			auto mut = stmt.mut() == VariableMutability::Val ? "mutable" : "immutable";
+			PrintFormatted("Variable Decl ({}) {} of {}\n", mut, ToString_Token(stmt.name()), ToString_Type(stmt.type()));
 		}
 		void Visit(JumpStmt& stmt) override
 		{
 			PrintIdent(ident);
 
-			auto cmd = stmt.command();
-			if (cmd.Value() == JumpCommand::Break)
+			if (stmt.command() == JumpCommand::Break)
 			{
 				PrintFormatted("Break\n");
 			}
@@ -76,12 +76,12 @@ void PrintStatement(Statement* s, int ident)
 		void Visit(CompoundStmt& stmt) override
 		{
 			PrintIdent(ident);
-			if (stmt.children()->Data().empty())
+			if (stmt.children()->Empty())
 				PrintFormatted("Empty compound\n");
 			else
 				PrintFormatted("Compound\n");
 
-			for (auto child : stmt.children()->Data())
+			for (auto child : stmt.children()->Value())
 			{
 				PrintStatement(child, ident + 4);
 			}
@@ -102,9 +102,12 @@ void PrintStatement(Statement* s, int ident)
 			PrintFormatted("Positive:\n");
 			PrintStatement(stmt.positive(), ident + 4);
 
-			PrintIdent(ident);
-			PrintFormatted("Negative:\n");
-			PrintStatement(stmt.negative(), ident + 4);
+			if (const auto& negative = stmt.negative(); negative.HasValue())
+			{
+				PrintIdent(ident);
+				PrintFormatted("Negative:\n");
+				PrintStatement(negative.Value(), ident + 4);
+			}
 		}
 	};
 
@@ -118,27 +121,27 @@ void PrintFunctionDecl(FuncDecl* f)
 	PrintFormatted("Function {}@(offset:{}, length:{})\n", ToString_Token(f->name()), f->Offset(), f->Length());
 
 	PrintFormatted("Parameters:\n");
-	for (auto param : f->params()->Data())
-		PrintFormatted("    {} of {}\n", ToString_Token(param->name()), ToString_Type(*param->type()));
+	for (auto param : f->params()->Value())
+		PrintFormatted("    {} of {}\n", ToString_Token(param->name()), ToString_Type(param->type()));
 
 	PrintFormatted("Returns:\n");
-	PrintFormatted("    {}\n", ToString_Type(*f->ret()));
+	PrintFormatted("    {}\n", ToString_Type(f->ret()));
 
 	PrintFormatted("Body: [\n");
-	for (auto stmt : f->body()->Data())
+	for (auto stmt : f->body()->Value())
 		PrintStatement(stmt, 4);
 
 	PrintFormatted("]\n");
 }
 void PrintTranslationUnit(const TranslationUnit& u)
 {
-	for (auto f : u.functions()->Data())
+	for (auto f : u.functions()->Value())
 		PrintFunctionDecl(f);
 }
 
 int main()
 {
-	//cout << BootstrapParser(kConfig);
+	// cout << BootstrapParser(kConfig);
 	auto parser = CreateParser();
 	auto result = parser->Parse(kSample);
 

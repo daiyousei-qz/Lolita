@@ -312,7 +312,7 @@ node ChoiceStmt : Statement
 {
     Expression pred;
     Statement positive;
-    Statement negative;
+    Statement'opt negative;
 }
 rule OpenChoiceStmt : ChoiceStmt
     = k_if s_lp Expr:pred s_rp Stmt:positive -> ChoiceStmt

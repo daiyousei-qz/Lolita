@@ -43,6 +43,14 @@ namespace eds::loli::ast
 			return proxy.ConstructVector(arena);
 		}
 	};
+	class AstOptionalGen
+	{
+	public:
+		AstItemWrapper Invoke(const AstTypeProxy& proxy, Arena& arena, ArrayRef<AstItemWrapper> rhs) const
+		{
+			return proxy.ConstructOptional();
+		}
+	};
 	class AstItemSelector
 	{
 	public:
@@ -51,6 +59,7 @@ namespace eds::loli::ast
 
 		AstItemWrapper Invoke(const AstTypeProxy& proxy, Arena& arena, ArrayRef<AstItemWrapper> rhs) const
 		{
+			assert(index_ < rhs.Length());
 			return rhs.At(index_);
 		}
 
@@ -100,7 +109,7 @@ namespace eds::loli::ast
 		{
 			for (auto index : indices_)
 			{
-				proxy.InsertElement(vec, rhs.At(index));
+				proxy.PushBackElement(vec, rhs.At(index));
 			}
 		}
 
@@ -119,6 +128,7 @@ namespace eds::loli::ast
 			AstEnumGen,
 			AstObjectGen,
 			AstVectorGen,
+			AstOptionalGen,
 			AstItemSelector
 		>;
 

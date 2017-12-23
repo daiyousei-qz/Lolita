@@ -24,9 +24,10 @@ namespace eds::loli::ast
 		virtual AstItemWrapper ConstructEnum(int value) const = 0;
 		virtual AstItemWrapper ConstructObject(Arena&) const = 0;
 		virtual AstItemWrapper ConstructVector(Arena&) const = 0;
+		virtual AstItemWrapper ConstructOptional() const = 0;
 
 		virtual void AssignField(AstItemWrapper obj, int codinal, AstItemWrapper value) const = 0;
-		virtual void InsertElement(AstItemWrapper vec, AstItemWrapper elem) const = 0;
+		virtual void PushBackElement(AstItemWrapper vec, AstItemWrapper elem) const = 0;
 	};
 
 	// placeholder proxy
@@ -52,12 +53,16 @@ namespace eds::loli::ast
 		{
 			Throw();
 		}
+		AstItemWrapper ConstructOptional() const override
+		{
+			Throw();
+		}
 
 		void AssignField(AstItemWrapper obj, int codinal, AstItemWrapper value) const override
 		{
 			Throw();
 		}
-		void InsertElement(AstItemWrapper vec, AstItemWrapper elem) const override
+		void PushBackElement(AstItemWrapper vec, AstItemWrapper elem) const override
 		{
 			Throw();
 		}
@@ -108,6 +113,10 @@ namespace eds::loli::ast
 		{
 			return arena.Construct<VectorType>();
 		}
+		AstItemWrapper ConstructOptional() const override
+		{
+			return OptionalType{};
+		}
 
 		void AssignField(AstItemWrapper obj, int ordinal, AstItemWrapper value) const override
 		{
@@ -120,9 +129,9 @@ namespace eds::loli::ast
 				throw ParserInternalError{ "BasicAstTypeProxy: T is not a klass type" };
 			}
 		}
-		void InsertElement(AstItemWrapper vec, AstItemWrapper elem) const override
+		void PushBackElement(AstItemWrapper vec, AstItemWrapper elem) const override
 		{
-			vec.Extract<VectorType*>()->Push(elem.Extract<StoreType>());
+			vec.Extract<VectorType*>()->PushBack(elem.Extract<StoreType>());
 		}
 	};
 

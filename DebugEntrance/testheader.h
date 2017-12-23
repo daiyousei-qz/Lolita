@@ -7,6 +7,7 @@
 
 namespace eds::loli
 {
+
     // Referred Names
     //
     using eds::loli::ast::BasicAstToken;
@@ -219,7 +220,7 @@ namespace eds::loli
 
         void Accept(Statement::Visitor& v) override { v.Visit(*this); }
     };
-    class ChoiceStmt : public Statement, public DataBundle<Expression*, Statement*, Statement*>
+    class ChoiceStmt : public Statement, public DataBundle<Expression*, Statement*, AstOptional<Statement*>>
     {
         public:
         const auto& pred() const { return GetItem<0>(); }
@@ -569,7 +570,7 @@ node ChoiceStmt : Statement
 {
     Expression pred;
     Statement positive;
-    Statement negative;
+    Statement'opt negative;
 }
 rule OpenChoiceStmt : ChoiceStmt
     = k_if s_lp Expr:pred s_rp Stmt:positive -> ChoiceStmt
@@ -686,3 +687,4 @@ rule TranslationUnit : TranslationUnit
         return BasicParser<TranslationUnit>::Create(config, &proxy_manager);
     }
 }
+

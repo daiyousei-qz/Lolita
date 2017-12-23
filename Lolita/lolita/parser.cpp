@@ -404,9 +404,11 @@ namespace eds::loli
 			offset = tok.Offset() + tok.Length();
 
 			// throw for invalid token
-			if (tok.Tag() == -1) throw 0;
+			if (!tok.IsValid()) 
+				throw ParserInternalError{ "GenericParser: invalid token encountered" };
 			// ignore tokens in blacklist
-			if (tok.Tag() >= term_num_) continue;
+			if (tok.Tag() >= term_num_) 
+				continue;
 
 			FeedParsingContext(ctx, tok);
 		}
@@ -444,7 +446,7 @@ namespace eds::loli
 		}
 		else
 		{
-			return ast::BasicAstToken{ offset, 1, -1 };
+			return ast::BasicAstToken{};
 		}
 	}
 
