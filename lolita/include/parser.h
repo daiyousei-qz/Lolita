@@ -137,18 +137,11 @@ namespace eds::loli
         using Ptr        = std::unique_ptr<BasicParser>;
         using ResultType = typename ast::AstTypeTrait<T>::StoreType;
 
-        struct ParsingResult
+        ResultType Parse(Arena& arena, const std::string& data)
         {
-            std::unique_ptr<Arena> arena;
-            ResultType result;
-        };
-
-        ParsingResult Parse(const std::string& data)
-        {
-            auto arena  = std::make_unique<Arena>();
             auto result = parser_->Parse(*arena, data);
 
-            return ParsingResult{std::move(arena), result.Extract<ResultType>()};
+            return result.Extract<ResultType>();
         }
 
         static Ptr Create(const std::string& config, const ast::AstTypeProxyManager* env)

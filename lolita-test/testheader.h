@@ -9,15 +9,15 @@ namespace eds::loli
 {
     // Referred Names
     //
-    using eds::loli::ast::BasicAstToken;
+    using eds::loli::BasicParser;
+    using eds::loli::ast::AstOptional;
+    using eds::loli::ast::AstTypeProxyManager;
+    using eds::loli::ast::AstVector;
     using eds::loli::ast::BasicAstEnum;
     using eds::loli::ast::BasicAstObject;
-    using eds::loli::ast::AstVector;
-    using eds::loli::ast::AstOptional;
-    using eds::loli::ast::DataBundle;
+    using eds::loli::ast::BasicAstToken;
     using eds::loli::ast::BasicAstTypeProxy;
-    using eds::loli::ast::AstTypeProxyManager;
-    using eds::loli::BasicParser;
+    using eds::loli::ast::DataBundle;
 
     // Forward declarations
     //
@@ -86,18 +86,18 @@ namespace eds::loli
 
     class Literal : public BasicAstObject
     {
-        public:
+    public:
         struct Visitor
         {
             virtual void Visit(BoolLiteral&) = 0;
-            virtual void Visit(IntLiteral&) = 0;
+            virtual void Visit(IntLiteral&)  = 0;
         };
 
         virtual void Accept(Visitor&) = 0;
     };
     class Type : public BasicAstObject
     {
-        public:
+    public:
         struct Visitor
         {
             virtual void Visit(NamedType&) = 0;
@@ -107,11 +107,11 @@ namespace eds::loli
     };
     class Expression : public BasicAstObject
     {
-        public:
+    public:
         struct Visitor
         {
-            virtual void Visit(BinaryExpr&) = 0;
-            virtual void Visit(NamedExpr&) = 0;
+            virtual void Visit(BinaryExpr&)  = 0;
+            virtual void Visit(NamedExpr&)   = 0;
             virtual void Visit(LiteralExpr&) = 0;
         };
 
@@ -119,15 +119,15 @@ namespace eds::loli
     };
     class Statement : public BasicAstObject
     {
-        public:
+    public:
         struct Visitor
         {
             virtual void Visit(VariableDeclStmt&) = 0;
-            virtual void Visit(JumpStmt&) = 0;
-            virtual void Visit(ReturnStmt&) = 0;
-            virtual void Visit(CompoundStmt&) = 0;
-            virtual void Visit(WhileStmt&) = 0;
-            virtual void Visit(ChoiceStmt&) = 0;
+            virtual void Visit(JumpStmt&)         = 0;
+            virtual void Visit(ReturnStmt&)       = 0;
+            virtual void Visit(CompoundStmt&)     = 0;
+            virtual void Visit(WhileStmt&)        = 0;
+            virtual void Visit(ChoiceStmt&)       = 0;
         };
 
         virtual void Accept(Visitor&) = 0;
@@ -138,28 +138,28 @@ namespace eds::loli
 
     class BoolLiteral : public Literal, public DataBundle<BasicAstEnum<BoolValue>>
     {
-        public:
+    public:
         const auto& content() const { return GetItem<0>(); }
 
         void Accept(Literal::Visitor& v) override { v.Visit(*this); }
     };
     class IntLiteral : public Literal, public DataBundle<BasicAstToken>
     {
-        public:
+    public:
         const auto& content() const { return GetItem<0>(); }
 
         void Accept(Literal::Visitor& v) override { v.Visit(*this); }
     };
     class NamedType : public Type, public DataBundle<BasicAstToken>
     {
-        public:
+    public:
         const auto& name() const { return GetItem<0>(); }
 
         void Accept(Type::Visitor& v) override { v.Visit(*this); }
     };
     class BinaryExpr : public Expression, public DataBundle<BasicAstEnum<BinaryOp>, Expression*, Expression*>
     {
-        public:
+    public:
         const auto& op() const { return GetItem<0>(); }
         const auto& lhs() const { return GetItem<1>(); }
         const auto& rhs() const { return GetItem<2>(); }
@@ -168,21 +168,21 @@ namespace eds::loli
     };
     class NamedExpr : public Expression, public DataBundle<BasicAstToken>
     {
-        public:
+    public:
         const auto& id() const { return GetItem<0>(); }
 
         void Accept(Expression::Visitor& v) override { v.Visit(*this); }
     };
     class LiteralExpr : public Expression, public DataBundle<Literal*>
     {
-        public:
+    public:
         const auto& content() const { return GetItem<0>(); }
 
         void Accept(Expression::Visitor& v) override { v.Visit(*this); }
     };
     class VariableDeclStmt : public Statement, public DataBundle<BasicAstEnum<VariableMutability>, BasicAstToken, Type*, Expression*>
     {
-        public:
+    public:
         const auto& mut() const { return GetItem<0>(); }
         const auto& name() const { return GetItem<1>(); }
         const auto& type() const { return GetItem<2>(); }
@@ -192,28 +192,28 @@ namespace eds::loli
     };
     class JumpStmt : public Statement, public DataBundle<BasicAstEnum<JumpCommand>>
     {
-        public:
+    public:
         const auto& command() const { return GetItem<0>(); }
 
         void Accept(Statement::Visitor& v) override { v.Visit(*this); }
     };
     class ReturnStmt : public Statement, public DataBundle<Expression*>
     {
-        public:
+    public:
         const auto& expr() const { return GetItem<0>(); }
 
         void Accept(Statement::Visitor& v) override { v.Visit(*this); }
     };
     class CompoundStmt : public Statement, public DataBundle<AstVector<Statement*>*>
     {
-        public:
+    public:
         const auto& children() const { return GetItem<0>(); }
 
         void Accept(Statement::Visitor& v) override { v.Visit(*this); }
     };
     class WhileStmt : public Statement, public DataBundle<Expression*, Statement*>
     {
-        public:
+    public:
         const auto& pred() const { return GetItem<0>(); }
         const auto& body() const { return GetItem<1>(); }
 
@@ -221,7 +221,7 @@ namespace eds::loli
     };
     class ChoiceStmt : public Statement, public DataBundle<Expression*, Statement*, AstOptional<Statement*>>
     {
-        public:
+    public:
         const auto& pred() const { return GetItem<0>(); }
         const auto& positive() const { return GetItem<1>(); }
         const auto& negative() const { return GetItem<2>(); }
@@ -230,13 +230,13 @@ namespace eds::loli
     };
     class TypedName : public BasicAstObject, public DataBundle<BasicAstToken, Type*>
     {
-        public:
+    public:
         const auto& name() const { return GetItem<0>(); }
         const auto& type() const { return GetItem<1>(); }
     };
     class FuncDecl : public BasicAstObject, public DataBundle<BasicAstToken, AstVector<TypedName*>*, Type*, AstVector<Statement*>*>
     {
-        public:
+    public:
         const auto& name() const { return GetItem<0>(); }
         const auto& params() const { return GetItem<1>(); }
         const auto& ret() const { return GetItem<2>(); }
@@ -244,7 +244,7 @@ namespace eds::loli
     };
     class TranslationUnit : public BasicAstObject, public DataBundle<AstVector<FuncDecl*>*>
     {
-        public:
+    public:
         const auto& functions() const { return GetItem<0>(); }
     };
 
@@ -254,7 +254,7 @@ namespace eds::loli
     inline BasicParser<TranslationUnit>::Ptr CreateParser()
     {
         static const auto config =
-u8R"##########(
+            u8R"##########(
 
 # ===================================================
 # Symbols
@@ -646,8 +646,7 @@ rule TranslationUnit : TranslationUnit
     = FuncDeclList:functions -> _
     ;
 )##########";
-        static const auto proxy_manager = []()
-        {
+        static const auto proxy_manager = []() {
             AstTypeProxyManager env;
 
             // register enums
@@ -680,10 +679,8 @@ rule TranslationUnit : TranslationUnit
             env.RegisterKlass<TranslationUnit>("TranslationUnit");
 
             return env;
-        }
-        ();
+        }();
 
         return BasicParser<TranslationUnit>::Create(config, &proxy_manager);
     }
 }
-
