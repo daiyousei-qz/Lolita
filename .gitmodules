@@ -1,0 +1,3 @@
+[submodule "Reference/edslib"]
+	path = Reference/edslib
+	url = https://github.com/edsDev/edslib
